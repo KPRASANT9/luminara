@@ -1,0 +1,124 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "name": "DevHAPOS",
+  "version": "4.0.0",
+  "description": "F-OS Unified: Health substrate + Development substrate + AutoResearch. DomainMatrix embeddings, 3-level optimization per substrate.",
+
+  "model": "anthropic/claude-sonnet-4-20250514",
+
+  "agent": {
+    "build": {
+      "description": "Default build agent — full access, Sonnet for balanced accuracy/cost",
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.2,
+      "steps": 30,
+      "prompt": "{file:.opencode/agents/coder.md}",
+      "permission": { "edit": "allow", "bash": "ask" }
+    },
+    "plan": {
+      "description": "Planning agent — read-only, Sonnet for reasoning, higher temp for creativity",
+      "mode": "primary",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.4,
+      "steps": 15,
+      "prompt": "{file:.opencode/agents/architect.md}",
+      "permission": { "edit": "deny", "bash": "deny" }
+    },
+    "reviewer": {
+      "description": "Code reviewer — read-only, low temp for deterministic invariant checking",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.1,
+      "steps": 10,
+      "prompt": "{file:.opencode/agents/reviewer.md}",
+      "permission": { "edit": "deny", "bash": "ask" }
+    },
+    "tester": {
+      "description": "Test specialist — Haiku for fast formulaic test generation, lower cost",
+      "mode": "subagent",
+      "model": "anthropic/claude-haiku-4-20250514",
+      "temperature": 0.2,
+      "steps": 20,
+      "prompt": "{file:.opencode/agents/tester.md}",
+      "permission": { "edit": "allow", "bash": "allow" }
+    },
+    "physicist": {
+      "description": "Physics validator — Opus for deep reasoning on equations and units",
+      "mode": "subagent",
+      "model": "anthropic/claude-opus-4-20250514",
+      "temperature": 0.1,
+      "steps": 10,
+      "prompt": "{file:.opencode/agents/physicist.md}",
+      "permission": { "edit": "deny", "bash": "ask" }
+    },
+    "guardian": {
+      "description": "Security auditor — Sonnet for balanced analysis",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.1,
+      "steps": 10,
+      "prompt": "{file:.opencode/agents/guardian.md}",
+      "permission": { "edit": "deny", "bash": "ask" }
+    },
+    "invariant-runner": {
+      "description": "Invariant checker — Haiku for fast deterministic testing",
+      "mode": "subagent",
+      "model": "anthropic/claude-haiku-4-20250514",
+      "temperature": 0.0,
+      "steps": 10,
+      "prompt": "{file:.opencode/agents/invariant_runner.md}",
+      "permission": { "edit": "deny", "bash": "allow" }
+    },
+    "documenter": {
+      "description": "Documentation specialist — Haiku for fast doc generation",
+      "mode": "subagent",
+      "model": "anthropic/claude-haiku-4-20250514",
+      "temperature": 0.3,
+      "steps": 15,
+      "prompt": "{file:.opencode/agents/documenter.md}",
+      "permission": { "edit": "allow", "bash": "deny" }
+    },
+    "autotuner": {
+      "description": "AutoResearch agent — Sonnet for balanced param exploration",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.2,
+      "steps": 50,
+      "prompt": "{file:.opencode/agents/autotuner.md}",
+      "permission": { "edit": "allow", "bash": "allow" }
+    },
+    "retro": {
+      "description": "Retrospective facilitator — Sonnet with higher temp for creative analysis",
+      "mode": "subagent",
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.5,
+      "steps": 10,
+      "prompt": "{file:.opencode/agents/retro.md}",
+      "permission": { "edit": "deny", "bash": "ask" }
+    },
+    "strategist": {
+      "description": "Quarterly strategy — Opus for deep structural reasoning",
+      "mode": "subagent",
+      "model": "anthropic/claude-opus-4-20250514",
+      "temperature": 0.3,
+      "steps": 15,
+      "prompt": "{file:.opencode/agents/strategist.md}",
+      "permission": { "edit": "deny", "bash": "ask" }
+    },
+    "explore": {
+      "description": "Fast read-only codebase exploration — Haiku for speed",
+      "mode": "subagent",
+      "model": "anthropic/claude-haiku-4-20250514",
+      "temperature": 0.1,
+      "steps": 10,
+      "tools": { "write": false, "edit": false },
+      "permission": { "bash": { "*": "deny", "grep *": "allow", "find *": "allow", "cat *": "allow" } }
+    }
+  },
+
+  "permission": {
+    "edit": "ask",
+    "bash": "ask"
+  }
+}

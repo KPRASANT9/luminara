@@ -1,0 +1,46 @@
+# DevHAPOS Local Development Environment
+# Mirrors production topology at reduced scale (Principle P10: dev = staging = prod)
+version: "3.9"
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    command: ["--jetstream", "--store_dir=/data", "-p", "4222"]
+    ports: ["4222:4222", "8222:8222"]
+    volumes: ["nats-data:/data"]
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_PASSWORD: devhapos
+      POSTGRES_DB: hapos
+    ports: ["5432:5432"]
+    volumes: ["ts-data:/var/lib/postgresql/data"]
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports: ["6333:6333", "6334:6334"]
+    volumes: ["qdrant-data:/qdrant/storage"]
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/devhapos
+    ports: ["7474:7474", "7687:7687"]
+    volumes: ["neo4j-data:/data"]
+
+  grafana:
+    image: grafana/grafana:latest
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: devhapos
+
+  prometheus:
+    image: prom/prometheus:latest
+    ports: ["9090:9090"]
+
+volumes:
+  nats-data:
+  ts-data:
+  qdrant-data:
+  neo4j-data:
