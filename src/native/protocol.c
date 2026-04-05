@@ -159,11 +159,10 @@ int csos_handle(csos_organism_t *org, const char *json_in,
         csos_membrane_t *d = csos_organism_find(org, "eco_domain");
         csos_membrane_t *k = csos_organism_find(org, "eco_cockpit");
         csos_membrane_t *o = csos_organism_find(org, "eco_organism");
-        int pos = snprintf(json_out, out_sz, "{\"substrate\":\"%s\",\"signals\":%d,",
+        int pos = snprintf(json_out, out_sz, "{\"substrate\":\"%s\",\"signals\":%d,\"physics\":",
                            substrate[0] ? substrate : "unknown", (int)ph.delta);
-        pos += photon_to_json(&ph, d, k, o, json_out + pos - 1, out_sz - pos + 1);
-        /* Overwrite trailing } and merge */
-        json_out[pos-1] = '}';
+        pos += photon_to_json(&ph, d, k, o, json_out + pos, out_sz - pos);
+        snprintf(json_out + pos, out_sz - pos, "}");
         return 0;
     }
 
@@ -839,7 +838,82 @@ int csos_unix_loop(csos_organism_t *org, const char *path) {
     return 0;
 }
 
-/* ═══ HTTP PROTOCOL ═══ */
+/* ═══ HTTP PROTOCOL: Full daemon (Replit-style single binary) ═══ */
+/*
+ * One binary serves everything:
+ *   GET  /              → canvas HTML (.canvas-tui/index.html)
+ *   GET  /api/state     → full organism state as JSON
+ *   GET  /api/templates → living template catalog
+ *   GET  /events        → SSE stream (Server-Sent Events)
+ *   POST /api/command   → JSON command → csos_handle() → JSON response
+ *   OPTIONS *           → CORS preflight
+ */
+
+/* SSE client list (simple array, max 32 concurrent) */
+#define MAX_SSE_CLIENTS 32
+static int _sse_fds[MAX_SSE_CLIENTS];
+static int _sse_count = 0;
+
+static void sse_broadcast(csos_organism_t *org, const char *event, const char *data) {
+    char msg[8192];
+    int len = snprintf(msg, sizeof(msg), "event: %s\ndata: %s\n\n", event, data);
+    for (int i = _sse_count - 1; i >= 0; i--) {
+        if (write(_sse_fds[i], msg, len) <= 0) {
+            close(_sse_fds[i]);
+            _sse_fds[i] = _sse_fds[--_sse_count];
+        }
+    }
+}
+
+static void http_send(int fd, int status, const char *ctype, const char *body, size_t blen) {
+    char hdr[512];
+    int hlen = snprintf(hdr, sizeof(hdr),
+        "HTTP/1.1 %d OK\r\nContent-Type: %s\r\nContent-Length: %zu\r\n"
+        "Access-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+        status, ctype, blen);
+    write(fd, hdr, hlen);
+    write(fd, body, blen);
+}
+
+static void http_send_file(int fd, const char *path, const char *ctype) {
+    FILE *f = fopen(path, "r");
+    if (!f) { http_send(fd, 404, "text/plain", "not found", 9); return; }
+    fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
+    char *buf = (char *)malloc(sz + 1);
+    fread(buf, 1, sz, f); buf[sz] = 0; fclose(f);
+    http_send(fd, 200, ctype, buf, sz);
+    free(buf);
+}
+
+/* Build full state JSON from organism */
+static int build_state_json(csos_organism_t *org, char *out, size_t sz) {
+    int pos = 0;
+    pos += snprintf(out + pos, sz - pos, "{\"rings\":{");
+    for (int i = 0; i < org->count && pos < (int)sz - 512; i++) {
+        csos_membrane_t *m = org->membranes[i];
+        if (i > 0) pos += snprintf(out + pos, sz - pos, ",");
+        pos += snprintf(out + pos, sz - pos,
+            "\"%s\":{\"gradient\":%.0f,\"speed\":%.4f,\"F\":%.4f,\"rw\":%.3f,"
+            "\"cycles\":%u,\"atoms\":%d,\"decision\":\"%s\"}",
+            m->name, m->gradient, m->speed, m->F, m->rw, m->cycles, m->atom_count,
+            m->speed > m->rw ? "EXECUTE" : "EXPLORE");
+    }
+    pos += snprintf(out + pos, sz - pos, "},\"clients\":%d,\"native\":true}", _sse_count);
+    return pos;
+}
+
+/* Build template catalog JSON */
+static int build_templates_json(char *out, size_t sz) {
+    return snprintf(out, sz,
+        "{\"templates\":["
+        "{\"id\":\"data_pipeline\",\"name\":\"Data Pipeline\",\"description\":\"Ingest → process → decide → deliver\",\"category\":\"ingestion\"},"
+        "{\"id\":\"database_etl\",\"name\":\"Database ETL\",\"description\":\"Query → transform → load → validate\",\"category\":\"etl\"},"
+        "{\"id\":\"model_inference\",\"name\":\"Model Inference\",\"description\":\"Prepare → infer → parse → evaluate\",\"category\":\"ai\"},"
+        "{\"id\":\"file_processing\",\"name\":\"File Processing\",\"description\":\"Read → parse → analyze → output\",\"category\":\"files\"},"
+        "{\"id\":\"rdma_hpc\",\"name\":\"RDMA HPC Pipeline\",\"description\":\"Register → compute → RDMA transfer → verify\",\"category\":\"hpc\"},"
+        "{\"id\":\"multi_source\",\"name\":\"Multi-Source Aggregation\",\"description\":\"Gather multiple → merge → analyze → deliver\",\"category\":\"aggregation\"}"
+        "]}");
+}
 
 int csos_http_loop(csos_organism_t *org, uint16_t port) {
     int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -851,30 +925,118 @@ int csos_http_loop(csos_organism_t *org, uint16_t port) {
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) { close(fd); return -1; }
-    listen(fd, 16);
-    fprintf(stderr, "CSOS membrane HTTP on port %d\n", port);
-    fprintf(stderr, "  POST with JSON body: {\"action\":\"absorb\",\"substrate\":\"x\",\"output\":\"data\"}\n");
+    listen(fd, 32);
+    fprintf(stderr, "CSOS native daemon on http://localhost:%d\n", port);
+    fprintf(stderr, "  Canvas: http://localhost:%d\n", port);
+    fprintf(stderr, "  SSE:    http://localhost:%d/events\n", port);
+    fprintf(stderr, "  API:    http://localhost:%d/api/command (POST)\n", port);
 
     char req[65536], resp[65536];
     while (1) {
-        struct pollfd pfd = {fd, POLLIN, 0};
-        if (poll(&pfd, 1, 1000) <= 0) continue;
+        struct pollfd pfds[MAX_SSE_CLIENTS + 1];
+        pfds[0].fd = fd; pfds[0].events = POLLIN;
+        /* Also poll SSE clients for disconnect detection */
+        for (int i = 0; i < _sse_count; i++) {
+            pfds[i + 1].fd = _sse_fds[i]; pfds[i + 1].events = POLLIN;
+        }
+        int nfds = poll(pfds, 1 + _sse_count, 5000);
+        if (nfds <= 0) {
+            /* Keepalive for SSE clients */
+            for (int i = _sse_count - 1; i >= 0; i--) {
+                if (write(_sse_fds[i], ": keepalive\n\n", 14) <= 0) {
+                    close(_sse_fds[i]);
+                    _sse_fds[i] = _sse_fds[--_sse_count];
+                }
+            }
+            continue;
+        }
+        /* Check for SSE client disconnects */
+        for (int i = _sse_count - 1; i >= 0; i--) {
+            if (pfds[i + 1].revents & (POLLIN | POLLHUP | POLLERR)) {
+                char tmp[16];
+                if (read(_sse_fds[i], tmp, sizeof(tmp)) <= 0) {
+                    close(_sse_fds[i]);
+                    _sse_fds[i] = _sse_fds[--_sse_count];
+                }
+            }
+        }
+        if (!(pfds[0].revents & POLLIN)) continue;
+
         int cl = accept(fd, NULL, NULL);
         if (cl < 0) continue;
         ssize_t n = read(cl, req, sizeof(req) - 1);
-        if (n > 0) {
-            req[n] = 0;
-            char *body = strstr(req, "\r\n\r\n");
-            if (body) body += 4; else body = req;
-            csos_handle(org, body, resp, sizeof(resp));
-            char hdr[256];
-            int hlen = snprintf(hdr, sizeof(hdr),
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
-                "Content-Length: %zu\r\nAccess-Control-Allow-Origin: *\r\n"
-                "Connection: close\r\n\r\n", strlen(resp));
-            write(cl, hdr, hlen);
-            write(cl, resp, strlen(resp));
+        if (n <= 0) { close(cl); continue; }
+        req[n] = 0;
+
+        /* Parse HTTP method and path */
+        char method[8] = {0}, path[256] = {0};
+        sscanf(req, "%7s %255s", method, path);
+
+        /* ── OPTIONS: CORS preflight ── */
+        if (strcmp(method, "OPTIONS") == 0) {
+            const char *cors = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n"
+                "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                "Access-Control-Allow-Headers: Content-Type\r\nContent-Length: 0\r\n"
+                "Connection: close\r\n\r\n";
+            write(cl, cors, strlen(cors));
+            close(cl); continue;
         }
+
+        /* ── GET routes ── */
+        if (strcmp(method, "GET") == 0) {
+            if (strcmp(path, "/") == 0 || strcmp(path, "/index.html") == 0) {
+                http_send_file(cl, ".canvas-tui/index.html", "text/html; charset=utf-8");
+            }
+            else if (strcmp(path, "/api/state") == 0) {
+                build_state_json(org, resp, sizeof(resp));
+                http_send(cl, 200, "application/json", resp, strlen(resp));
+            }
+            else if (strcmp(path, "/api/templates") == 0) {
+                build_templates_json(resp, sizeof(resp));
+                http_send(cl, 200, "application/json", resp, strlen(resp));
+            }
+            else if (strcmp(path, "/events") == 0) {
+                /* SSE: keep connection open, add to client list */
+                const char *sse_hdr =
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
+                    "Cache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\n"
+                    "Connection: keep-alive\r\n\r\n";
+                write(cl, sse_hdr, strlen(sse_hdr));
+                /* Send initial state */
+                build_state_json(org, resp, sizeof(resp));
+                char init[65536];
+                int ilen = snprintf(init, sizeof(init), "event: state\ndata: %s\n\n", resp);
+                write(cl, init, ilen);
+                /* Add to SSE list (don't close) */
+                if (_sse_count < MAX_SSE_CLIENTS) {
+                    _sse_fds[_sse_count++] = cl;
+                } else {
+                    close(cl);
+                }
+                continue; /* Don't close — SSE connection stays open */
+            }
+            else {
+                http_send(cl, 404, "text/plain", "not found", 9);
+            }
+            close(cl); continue;
+        }
+
+        /* ── POST routes ── */
+        if (strcmp(method, "POST") == 0) {
+            char *body = strstr(req, "\r\n\r\n");
+            if (body) body += 4; else body = "{}";
+            if (strcmp(path, "/api/command") == 0) {
+                csos_handle(org, body, resp, sizeof(resp));
+                http_send(cl, 200, "application/json", resp, strlen(resp));
+                /* Broadcast to SSE clients */
+                sse_broadcast(org, "response", resp);
+            }
+            else {
+                http_send(cl, 404, "application/json", "{\"error\":\"not found\"}", 21);
+            }
+            close(cl); continue;
+        }
+
         close(cl);
     }
     close(fd);

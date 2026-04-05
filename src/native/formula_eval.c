@@ -155,7 +155,7 @@ static double parse_primary(parser_t *p) {
             /* One-argument functions — clamped for safety like Python _safe_eval */
             if (strcmp(name, "abs") == 0) return fabs(arg1);
             if (strcmp(name, "exp") == 0) {
-                double clamped = arg1 > 20 ? 20 : (arg1 < -20 ? -20 : arg1);
+                double clamped = arg1 > CSOS_EXP_CLAMP ? CSOS_EXP_CLAMP : (arg1 < -CSOS_EXP_CLAMP ? -CSOS_EXP_CLAMP : arg1);
                 return exp(clamped);
             }
             if (strcmp(name, "sqrt") == 0) return sqrt(arg1 > 0 ? arg1 : 0);

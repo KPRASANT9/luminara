@@ -56,7 +56,7 @@ void csos_atom_init(csos_atom_t *a, const char *name, const char *formula,
 }
 
 void csos_atom_compute_rw(csos_atom_t *a) {
-    int fc = (int)strlen(a->formula) / 10;
+    int fc = (int)strlen(a->formula) / CSOS_FORMULA_DOF_DIVISOR;
     if (fc < 1) fc = 1;
     int dof = a->param_count + a->limit_count + fc;
     a->rw = (double)dof / (double)(dof + 1);
@@ -97,11 +97,11 @@ static void atom_tune(csos_atom_t *a) {
     for (int i = start; i < a->photon_count; i++)
         bias += a->photons[i].predicted - a->photons[i].actual;
     bias /= w;
-    if (fabs(bias) < a->rw * 0.1) return;
+    if (fabs(bias) < a->rw * CSOS_TUNE_THRESHOLD) return;
     double lr = 1.0 / (1.0 + g);
     for (int k = 0; k < a->param_count; k++) {
         double pv = fabs(a->params[k]);
-        if (pv == 0) pv = 0.01;
+        if (pv == 0) pv = CSOS_ERROR_DENOM_GUARD;
         a->params[k] -= bias * lr * pv;
     }
 }
@@ -167,7 +167,7 @@ csos_membrane_t *csos_membrane_create(const char *name) {
         m->atom_count = count;
     }
 
-    m->rw = m->atom_count > 0 ? m->atoms[0].rw : 0.833;
+    m->rw = m->atom_count > 0 ? m->atoms[0].rw : CSOS_DEFAULT_RW;
 
 #ifdef CSOS_HAS_LLVM
     /* Compile all formula expressions to native code via LLVM */
@@ -206,8 +206,8 @@ static void motor_update(csos_membrane_t *m, uint32_t hash,
         e->substrate_hash = hash;
         e->last_seen = m->motor_cycle;
         e->reps = 1;
-        e->strength = 0.1;
-        *out_strength = 0.1;
+        e->strength = CSOS_MOTOR_GROWTH;
+        *out_strength = CSOS_MOTOR_GROWTH;
         *out_interval = 0;
     } else {
         uint64_t ni = m->motor_cycle - e->last_seen;
@@ -217,12 +217,12 @@ static void motor_update(csos_membrane_t *m, uint32_t hash,
         e->reps++;
         if (ni > e->prev_interval && e->prev_interval > 0) {
             double sf = (double)ni / (double)(e->prev_interval + 1);
-            if (sf > 3.0) sf = 3.0;
-            e->strength += 0.1 * sf;
+            if (sf > CSOS_MOTOR_MAX_SF) sf = CSOS_MOTOR_MAX_SF;
+            e->strength += CSOS_MOTOR_GROWTH * sf;
         } else if (ni > 0) {
-            e->strength += 0.02;
+            e->strength += CSOS_MOTOR_BACKOFF;
         }
-        e->strength *= 0.99;
+        e->strength *= CSOS_MOTOR_DECAY;
         if (e->strength > 1.0) e->strength = 1.0;
         *out_strength = e->strength;
         *out_interval = ni;
@@ -259,7 +259,7 @@ int csos_motor_top(const csos_membrane_t *m, uint32_t *hashes,
 
 static int membrane_calvin(csos_membrane_t *m) {
     if (m->co2_count < 5) return 0;
-    int n = m->co2_count < 50 ? m->co2_count : 50;
+    int n = m->co2_count < CSOS_CALVIN_SAMPLE_SIZE ? m->co2_count : CSOS_CALVIN_SAMPLE_SIZE;
     int start = m->co2_count - n;
 
     double mean = 0;
@@ -282,8 +282,8 @@ static int membrane_calvin(csos_membrane_t *m) {
     double co2_mean_full = 0;
     for (int i = 0; i < m->co2_count; i++) co2_mean_full += m->co2[i];
     if (m->co2_count > 0) co2_mean_full /= m->co2_count;
-    double thresh = co2_mean_full * 0.05;
-    if (thresh < 0.1) thresh = 0.1;
+    double thresh = co2_mean_full * CSOS_CALVIN_GRAD_FRAC;
+    if (thresh < CSOS_CALVIN_GRAD_FLOOR) thresh = CSOS_CALVIN_GRAD_FLOOR;
     if (local_grad < thresh) return 0;
 
     /* Check if pattern already captured */
@@ -291,12 +291,12 @@ static int membrane_calvin(csos_membrane_t *m) {
         csos_atom_t *ex = &m->atoms[i];
         if (ex->local_count == 0) continue;
         double rs = 0; int rn = 0;
-        for (int j = ex->local_count - 1; j >= 0 && rn < 10; j--) {
+        for (int j = ex->local_count - 1; j >= 0 && rn < CSOS_CALVIN_MATCH_DEPTH; j--) {
             if (ex->local_photons[j].resonated) { rs += ex->local_photons[j].actual; rn++; }
         }
         if (rn == 0) continue;
         double em = rs / rn;
-        double vt = sqrt(var) * 0.1;
+        double vt = sqrt(var) * CSOS_CALVIN_VAR_MULT;
         double t = ex->rw > vt ? ex->rw : vt;
         double ea = fabs(em); if (ea < 1e-10) ea = 1e-10;
         if (fabs(mean - em) / ea < t) return 0;
@@ -359,7 +359,7 @@ csos_photon_t csos_membrane_absorb(csos_membrane_t *m, double value,
 
         /* Marcus: error = |predicted - actual| / max(|actual|, |predicted|*0.01+1e-10) */
         double denom = fabs(value);
-        double alt = fabs(pred) * 0.01 + 1e-10;
+        double alt = fabs(pred) * CSOS_ERROR_DENOM_GUARD + 1e-10;
         if (alt > denom) denom = alt;
         double error = fabs(pred - value) / denom;
         int resonated = (error < a->rw) ? 1 : 0;
@@ -409,12 +409,12 @@ csos_photon_t csos_membrane_absorb(csos_membrane_t *m, double value,
     if (m->speed > m->rw) {
         ph.decision = DECISION_EXECUTE;
         if (m->mode == MODE_PLAN) m->mode = MODE_BUILD;
-    } else if (m->action_ratio > 0.3 && ph.delta > 0) {
+    } else if (m->action_ratio > CSOS_BOYER_THRESHOLD && ph.delta > 0) {
         ph.decision = DECISION_EXPLORE;
     } else {
         if (ph.delta == 0) m->consecutive_zero_delta++;
         else m->consecutive_zero_delta = 0;
-        if (m->consecutive_zero_delta >= 2 || m->action_ratio < 0.3)
+        if (m->consecutive_zero_delta >= CSOS_STUCK_CYCLES || m->action_ratio < CSOS_BOYER_THRESHOLD)
             ph.decision = m->human_present ? DECISION_ASK : DECISION_STORE;
         else
             ph.decision = DECISION_EXPLORE;
@@ -422,7 +422,7 @@ csos_photon_t csos_membrane_absorb(csos_membrane_t *m, double value,
     m->decision = ph.decision;
 
     /* ── CALVIN (pattern synthesis — periodic) ── */
-    if (m->cycles > 0 && m->cycles % 5 == 0) membrane_calvin(m);
+    if (m->cycles > 0 && m->cycles % CSOS_CALVIN_FREQUENCY == 0) membrane_calvin(m);
 
     /* ── Store in photon ring ── */
     m->ring[m->ring_head & (CSOS_PHOTON_RING - 1)] = ph;

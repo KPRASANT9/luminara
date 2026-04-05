@@ -1,54 +1,149 @@
 ---
 name: csos-core
-description: THE ONLY tool. All data in, all output out. 20 actions through unified membrane.
+description: THE ONLY tool. 22 actions through native ./csos binary (LLVM JIT). All physics computed in membrane_absorb().
 ---
 
-# CSOS Core — The Only Tool
+# csos-core — 22 Actions
 
-ALL data flows through csos-core. No other tool writes output or fetches external data.
+Every action routes through the native `./csos` binary. One `membrane_absorb()` call runs all 5 equations. Every response carries `decision`, `delta`, `motor_strength`.
 
-## Why Only csos-core?
-
-| Other tool | Why denied | csos-core equivalent |
-|-----------|-----------|---------------------|
-| write/edit | Bypasses membrane — no auto-absorb, no motor memory, no gradient | `csos-core content="..."` (auto-routes through egress) |
-| webfetch | Bypasses auto-absorb — physics never sees the response | `csos-core url="..."` (auto-absorbs into membrane) |
-| websearch | Same bypass | `csos-core url="https://search..."` |
-| bash | Bypasses law enforcement — could create code files | `csos-core command="..."` (checks forbidden patterns) |
-
-## The 20 Actions
+## PHYSICS (signals enter the membrane)
 
 ```bash
-# INGRESS (signals enter the membrane)
-csos-core command="kubectl get pods" substrate=k8s     # exec: CLI + auto-absorb
-csos-core url="https://api.example.com" substrate=api  # web: fetch + auto-absorb
-csos-core substrate=manual output="42.5 data here"     # absorb: bridge read/grep
+# absorb: feed raw data through 3 compartments (eco_domain → cockpit → organism)
+csos-core substrate=databricks output="revenue 42M users 1.2M ARR 180M"
 
-# OBSERVATION (read physics state)
-csos-core ring=eco_organism detail=cockpit             # see: gradient, speed, decision
-csos-core ring=eco_organism detail=full                # see: + motor memory top
-csos-core explain=eco_organism                         # explain: human-readable reasoning
+# exec: run CLI command, auto-absorb stdout (Law I: blocks .py/.js/.ts creation)
+csos-core command="kubectl get pods -n prod" substrate=k8s
 
-# MEMORY (persist across sessions)
-csos-core key=target_role value="Senior Android"       # remember: store human data
-csos-core key=skill:k8s:check value="kubectl get pods" # remember: record a skill
-csos-core key=recall                                   # recall: retrieve all stored data
+# web: fetch URL, auto-absorb response (auth-aware, cookie persistence)
+csos-core url="https://api.example.com/health" substrate=infra
 
-# EGRESS (output exits the system)
-csos-core content="# Report\nAll systems normal."      # deliver: auto-route to egress channels
-csos-core channel=file path=".csos/deliveries/r.md" payload="content"  # egress: specific channel
-csos-core channel=slack url="$SLACK_WEBHOOK" payload="alert"           # egress: slack
+# fly: inject signals directly into a ring
+csos-core ring=eco_domain signals="42.5,100,3.14"
 
-# SYSTEM
-# no args = diagnose (health check)
+# batch: multiple absorbs in one call
+csos-core items='[{"substrate":"a","output":"1"},{"substrate":"b","output":"2"}]'
 ```
 
-## The Critical Rule
+## OBSERVATION (read physics state)
 
-When using read/glob/grep to examine files, the results are NOT in the physics.
-Always bridge them:
+```bash
+# see: read ring state (minimal | standard | cockpit | full)
+csos-core ring=eco_organism detail=cockpit
+# Returns: mode, speed, rw, action_ratio, motor_entries, gradient
+
+# explain: human-readable reasoning
+csos-core explain=eco_organism
+# Returns: natural language explanation of current state
+
+# diagnose: full system health check (no args)
+csos-core
+# Returns: status (healthy|degraded), issues, ring health
+
+# ping: liveness check
+# (via JSON pipe: {"action":"ping"})
 ```
-1. result = read("some/file.txt")
-2. csos-core substrate=codebase output="[paste result here]"
+
+## MEMORY (persist across sessions)
+
+```bash
+# remember: store human data
+csos-core key=target_role value="Senior Android developer, 180-220k"
+csos-core key="skill:k8s:check" value="kubectl get pods -n prod"
+
+# recall: retrieve all stored data
+csos-core key=recall
+
+# profile: human profile summary
+# (via JSON pipe: {"action":"profile"})
 ```
-This ensures: motor memory tracks the substrate, gradient grows, Boyer can decide.
+
+## DELIVERY (output exits the system)
+
+```bash
+# deliver: auto-route to configured channels
+csos-core content="# Cost Analysis\n\nTotal: $42,000/month..."
+
+# egress: specific channel
+csos-core channel=file path=".csos/deliveries/report.md" payload="# Report content"
+csos-core channel=webhook url="$SLACK_WEBHOOK" payload="Alert: CPU spike"
+```
+
+## TOOLS (evolve the system itself)
+
+```bash
+# tool: write to sanctioned paths (.opencode/tools/, specs/, .csos/deliveries/)
+csos-core toolpath="specs/new_substrate.csos" body="atom new { ... }"
+
+# toolread: read from sanctioned path
+csos-core toolread=".opencode/agents/csos-living.md"
+
+# toollist: list sanctioned directory
+csos-core toollist="specs/"
+```
+
+## ADVANCED (via JSON pipe)
+
+These 8 actions are available through direct JSON to the binary:
+
+```bash
+# grow: create a new ring
+echo '{"action":"grow","ring":"my_ring"}' | ./csos
+
+# diffuse: Forster coupling between rings
+echo '{"action":"diffuse","source":"eco_domain","target":"eco_organism"}' | ./csos
+
+# lint: health check on specific ring
+echo '{"action":"lint","ring":"eco_domain"}' | ./csos
+
+# muscle: motor memory priorities (spaced repetition)
+echo '{"action":"muscle","ring":"eco_organism"}' | ./csos
+
+# hash: deterministic substrate hash (1000-9999)
+echo '{"action":"hash","substrate":"databricks"}' | ./csos
+
+# save: persist all ring state to disk
+echo '{"action":"save"}' | ./csos
+
+# ping: alive check
+echo '{"action":"ping"}' | ./csos
+
+# profile: human data summary
+echo '{"action":"profile"}' | ./csos
+```
+
+## Response Format
+
+Every absorb/exec/web response:
+
+```json
+{
+  "substrate": "databricks",
+  "signals": 15,
+  "physics": {
+    "decision": "EXECUTE",
+    "delta": 15,
+    "motor_strength": 0.82,
+    "interval": 3,
+    "resonated": true,
+    "mode": "build",
+    "domain": {"grad": 4526, "speed": 161.6, "F": 29.2},
+    "cockpit": {"grad": 11297, "speed": 209.2},
+    "organism": {"grad": 14434, "speed": 801.9, "rw": 0.833}
+  }
+}
+```
+
+## Physics Constants (from membrane.h)
+
+All derived from the 5 equations. Zero magic numbers.
+
+| Constant | Value | Equation | Controls |
+|----------|-------|----------|----------|
+| `CSOS_BOYER_THRESHOLD` | 0.3 | Boyer | Decision gate: action_ratio > 0.3 → EXPLORE |
+| `CSOS_DEFAULT_RW` | 0.833 | Gouterman | Resonance width for empty rings |
+| `CSOS_MOTOR_GROWTH` | 0.1 | Forster | Strength gain on spaced encounter |
+| `CSOS_MOTOR_DECAY` | 0.99 | Forster | Per-cycle strength decay |
+| `CSOS_CALVIN_FREQUENCY` | 5 | Calvin | Synthesis attempt every 5 cycles |
+| `CSOS_STUCK_CYCLES` | 2 | Boyer | Consecutive zero-delta → mode switch |

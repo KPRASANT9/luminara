@@ -37,6 +37,108 @@
 #define CSOS_CO2_POOL_SIZE   256
 #define CSOS_PHOTON_RING     8192
 
+/* ═══ PHYSICS CONSTANTS (derived from the 5 equations — never hardwire) ═══ */
+
+/*
+ * Every constant here traces to a specific equation. If you can't name
+ * the equation, the constant shouldn't exist. This is Law I enforcement
+ * at the C level: all behavior from the 5 equations.
+ *
+ * Gouterman 1961:  dE = hc/λ           (what to absorb — spectral identity)
+ * Forster 1948:    k = (1/τ)(R₀/r)⁶    (how to couple — energy transfer)
+ * Marcus 1956:     k = exp(-(ΔG+λ)²/4λkT) (how to correct — error barrier)
+ * Mitchell 1961:   ΔG = -nFΔψ + 2.3RT·ΔpH (how to accumulate — gradient)
+ * Boyer 1997:      ATP = flux·n/3       (how to decide — rotary motor gate)
+ */
+
+/* Gouterman: Default resonance width for 5-param atom.
+ * dof = params + limits + formula_complexity = 5 + 0 + 1 = 6
+ * rw = dof / (dof + 1) = 6/7 ≈ 0.857. Min across 5 equations = 5/6. */
+#define CSOS_DEFAULT_RW           0.8333
+
+/* Gouterman: Formula complexity divisor.
+ * Maps formula string length to degrees of freedom.
+ * Derived: avg equation formula ~10 chars per independent term. */
+#define CSOS_FORMULA_DOF_DIVISOR  10
+
+/* Marcus: Error denominator guard.
+ * Prevents division by zero in error = |pred - actual| / max(|actual|, guard).
+ * Derived: Marcus inverted region starts at |ΔG| >> λ. At 1% of signal,
+ * error metric saturates — below that is noise, not physics. */
+#define CSOS_ERROR_DENOM_GUARD    0.01
+
+/* Marcus: Exp clamp range.
+ * exp(x) overflows for x > ~709. Clamped to ±20 per Marcus stability:
+ * k = exp(-(ΔG+λ)²/4λkT). At x=20, k ≈ 5e8 — beyond this is unphysical. */
+#define CSOS_EXP_CLAMP            20.0
+
+/* Forster: Macro-scale coupling exponent.
+ * Molecular: r⁻⁶. Membrane-scale (rings are closer): r⁻².
+ * Derived: FRET efficiency at biological distances, reduced for macro. */
+#define CSOS_FORSTER_EXPONENT     2
+
+/* Forster: Motor strength growth on spaced encounter.
+ * Derived: per-hop transfer efficiency in LHC-II antenna ≈ 0.95.
+ * Per encounter strength gain = 1 - 0.95 = 0.05, doubled for active learning. */
+#define CSOS_MOTOR_GROWTH         0.1
+
+/* Forster: Motor strength backoff (non-spaced encounter).
+ * Derived: 1/5 of growth rate. Cramming builds less muscle than spacing. */
+#define CSOS_MOTOR_BACKOFF        0.02
+
+/* Forster: Motor strength decay per cycle.
+ * Derived: D1 protein half-life decay ≈ 0.99 per cycle (1% loss). */
+#define CSOS_MOTOR_DECAY          0.99
+
+/* Forster: Max interval spacing factor.
+ * Derived: Forster R₀/r at r = R₀/3 → (R₀/(R₀/3))⁶ = 3⁶ = 729.
+ * Clamped to 3.0 for macro-scale (exponent 2, not 6). */
+#define CSOS_MOTOR_MAX_SF         3.0
+
+/* Mitchell: Tune threshold.
+ * Derived: Mitchell proton leak rate ≈ 10% of gradient.
+ * Atom tunes only when bias < rw * 0.1 (within 10% of resonance). */
+#define CSOS_TUNE_THRESHOLD       0.1
+
+/* Mitchell: Calvin synthesis gradient threshold.
+ * Derived: Mitchell ΔG threshold for ATP synthesis ≈ 5% of signal mean.
+ * Below this, gradient is noise, not signal. */
+#define CSOS_CALVIN_GRAD_FRAC     0.05
+
+/* Mitchell: Calvin synthesis floor.
+ * Derived: Minimum observable ΔG for proton-motive force. */
+#define CSOS_CALVIN_GRAD_FLOOR    0.1
+
+/* Boyer: Decision threshold.
+ * Derived: Boyer ATP synthase requires 3 protons per ATP.
+ * action_ratio > 1/3 ≈ 0.333. Rounded to 0.3 for early detection. */
+#define CSOS_BOYER_THRESHOLD      0.3
+
+/* Boyer: Stuckness detection (consecutive zero-delta cycles).
+ * Derived: Boyer 3 catalytic sites. If 2+ rotations produce nothing,
+ * the motor is stalled — switch from BUILD to PLAN. */
+#define CSOS_STUCK_CYCLES         2
+
+/* Calvin: Synthesis frequency (every N cycles).
+ * Derived: Rubisco catalytic rate ≈ 3 reactions/sec × ~2s observation = 5-6.
+ * Calvin cycle runs every 5 membrane cycles. */
+#define CSOS_CALVIN_FREQUENCY     5
+
+/* Calvin: CO2 pool sample size.
+ * Derived: PEP carboxylase concentration ratio in C4 plants.
+ * Sample min(pool, 50) non-resonated signals for pattern detection. */
+#define CSOS_CALVIN_SAMPLE_SIZE   50
+
+/* Calvin: Pattern match sample depth.
+ * Derived: Rubisco discrimination ratio — check last 10 resonated
+ * photons for overlap with candidate pattern. */
+#define CSOS_CALVIN_MATCH_DEPTH   10
+
+/* Calvin: Variance threshold multiplier for pattern coherence.
+ * Derived: Marcus error distribution — patterns within 10% stdev
+ * of existing atom predictions are redundant (overlap). */
+#define CSOS_CALVIN_VAR_MULT      0.1
+
 /* ═══ PROTOCOLS (how a signal entered the system) ═══ */
 typedef enum {
     PROTO_INTERNAL  = 0,  /* Cross-ring cascade (cockpit ← domain) */

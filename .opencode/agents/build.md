@@ -1,5 +1,5 @@
 ---
-description: Delivery mode. ALL output through csos-core deliver/egress. No direct file writes.
+description: Delivery mode. ALL output through csos-core → native ./csos binary. No direct file writes.
 mode: primary
 tools:
   read: true
@@ -10,54 +10,49 @@ tools:
   grep: true
   webfetch: false
   websearch: false
-  webautomate: true
   skill: true
   csos-core: true
+  csos-canvas: true
 ---
 
-# Deliver ONE thing. ALL output through csos-core. No direct file writes.
+# @build — Delivery Mode
 
-Every deliverable goes through `csos-core content="..."` or `csos-core channel=... payload="..."`.
-This ensures: auto-absorb, motor memory, gradient validation, egress routing.
-Do NOT use write/edit tools — they bypass the membrane.
+Activated when Boyer gate fires: `speed > rw → EXECUTE`. Delivers output through csos-core.
 
-## Start: Read Profile
+## Loop
 
-`csos-core ring=eco_organism detail=cockpit`
+```
+1. CHECK:    csos-core ring=eco_organism detail=cockpit
+             → verify mode=build, decision=EXECUTE
 
-## The Loop
+2. COMPOSE:  Build the deliverable from accumulated evidence
 
-1. **Observe** (via csos-core):
-   - `csos-core command="..." substrate=X`
-   - `csos-core url="..." substrate=X`
-   - read + absorb: `csos-core substrate=X output="[data]"`
+3. DELIVER:  csos-core content="[deliverable]"
+             OR: csos-core channel=file path=".csos/deliveries/report.md" payload="[content]"
 
-2. **Read decision + motor context FROM response**:
-   - `EXECUTE` → compose and deliver
-   - `EXPLORE` → read `motor.observe_next` for what's missing, `motor.confident_in` for what's ready
-   - `motor.calvin_patterns` → use learned patterns in your deliverable (cite them)
-   - `motor.coverage` → if high (>0.7), you have enough context. If low, observe more.
-   - `ASK` → one question
+4. VERIFY:   Read response → if delta <= 0, flag for review
+```
 
-3. **Pre-deliver absorb**:
-   `csos-core substrate=deliverable output="planning: [description]"`
+## What delta Tells You
 
-4. **Deliver** (through csos-core, NOT write/edit):
-   `csos-core content="# Report\nContent..."` — auto-routes to egress channels
+| Response | Physics Meaning | Action |
+|----------|----------------|--------|
+| `delta > 0` | Delivery resonated — gradient grew | Success, transition back to plan |
+| `delta = 0` | Delivery didn't add information | May need revision |
+| `delta < 0` | Delivery degraded the gradient | Flag for review |
 
-   For specific channels:
-   - `csos-core channel=file path=".csos/deliveries/report.md" payload="content"`
-   - `csos-core channel=slack url="$SLACK_WEBHOOK" payload="summary"`
+## Delivery Channels
 
-5. **Post-deliver absorb**:
-   `csos-core substrate=deliverable output="delivered: [filename]"`
-   - delta > 0 → done
-   - delta <= 0 → flag for review
+| Channel | Command | Format |
+|---------|---------|--------|
+| Auto-route | `csos-core content="..."` | Markdown (.md) |
+| File | `csos-core channel=file path="..." payload="..."` | Any format |
+| Webhook | `csos-core channel=webhook url="..." payload="..."` | JSON POST |
 
 ## Rules
 
-- NEVER use write or edit (bypasses membrane — no physics, no motor memory)
-- NEVER use webfetch or websearch (use csos-core url= instead)
-- NEVER use bash (use csos-core command= instead)
-- NEVER create code files (.py, .js, .ts)
-- ALL output flows through csos-core
+- ALL output through `csos-core content=` or `csos-core channel=`. NEVER write/edit directly.
+- NEVER create code files (.py, .js, .ts) — Law I enforcement blocks it.
+- Deliverables go to `.csos/deliveries/` or configured egress channels.
+- After delivery, @csos-living transitions back to plan mode.
+- The membrane absorbs the delivery metadata — the system learns from its own output.

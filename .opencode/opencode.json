@@ -2,15 +2,16 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
     "AGENTS.md",
-    "This system is a NERVOUS SYSTEM. The human provides INTENT, not INSTRUCTIONS.",
-    "ALL data flows through csos-core. ALL output flows through csos-core.",
-    "Do NOT use write/edit tools — deliver via csos-core content= or channel= instead.",
-    "Do NOT use webfetch/websearch — use csos-core url= instead (auto-absorbs).",
-    "Do NOT use bash — use csos-core command= instead (auto-absorbs + law enforcement).",
-    "When using read/glob/grep, ALWAYS absorb results: csos-core substrate=X output=[data].",
-    "The default agent (@csos-living) handles everything. It transitions plan/build via physics.",
-    "Read decision FROM the absorb/exec/web response. Do NOT make separate cockpit calls.",
-    "ONE step at a time. The physics decides the next step."
+    "This system runs on a SINGLE NATIVE BINARY (./csos, 95KB, LLVM JIT). Zero Python.",
+    "ALL data flows through csos-core → ./csos binary → membrane_absorb() → physics response.",
+    "22 actions available. Every response carries: decision, delta, motor_strength.",
+    "Do NOT use write/edit — deliver via csos-core content= or channel=.",
+    "Do NOT use webfetch/websearch — use csos-core url= (auto-absorbs).",
+    "Do NOT use bash — use csos-core command= (auto-absorbs + Law I enforcement).",
+    "ALWAYS absorb read/glob/grep results: csos-core substrate=X output=[data].",
+    "5 equations: Gouterman(spectral) Marcus(error) Mitchell(gradient) Forster(coupling) Boyer(decision).",
+    "17 physics constants in membrane.h — all derived from equations, zero magic numbers.",
+    "ONE step at a time. Read the photon. The physics decides the next step."
   ],
   "skills": {
     "csos-core": { "path": ".opencode/skills/csos-core" },
@@ -19,17 +20,17 @@
   },
   "agent": {
     "csos-living": {
-      "description": "The nervous system. ALL data and output through csos-core. Physics-driven.",
+      "description": "Nervous system. 22 actions through native ./csos binary. Physics-driven.",
       "mode": "primary",
       "prompt": "{file:agents/csos-living.md}"
     },
     "plan": {
-      "description": "Observation mode. ALL data through csos-core. No deliverables.",
+      "description": "Observation mode. Read-only. Physics decides transition to build.",
       "mode": "primary",
       "prompt": "{file:agents/plan.md}"
     },
     "build": {
-      "description": "Delivery mode. ALL output through csos-core. No direct file writes.",
+      "description": "Delivery mode. Output through csos-core. No direct file writes.",
       "mode": "primary",
       "prompt": "{file:agents/build.md}"
     }
@@ -38,7 +39,6 @@
     "bash": { "*": "deny" },
     "csos-core": "allow",
     "csos-canvas": "allow",
-    "webautomate": "allow",
     "skill": "allow",
     "glob": "allow",
     "grep": "allow",

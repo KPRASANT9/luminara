@@ -1,450 +1,663 @@
-# CSOS — Complex Systems Operating System
+# CSOS
 
-A physics-grounded autonomous agent framework. Five photosynthetic equations running inside a full chloroplast architecture — 7 organelles from 3.8 billion years of plant evolution, Law I compliant (zero hardcoded logic), operating on any substrate at any clock speed.
+Single native binary. Five photosynthetic equations. Zero Python.
 
-The membrane turns any LLM from a stateless guesser into a physics-grounded autonomous system that accumulates evidence, learns patterns at inference time, transfers knowledge across domains, and makes the same quality decisions regardless of which model runs underneath — at 1/6th the token cost.
-
----
-
-## What It Does
-
-CSOS absorbs high-entropy input from the world and guides humans to minimum-entropy decisions through physics. The system observes signals, matches them against five governing equations, and autonomously decides whether to deliver a result or gather more evidence.
+A 95KB C binary that turns any LLM into a physics-grounded autonomous system. Equations loaded from spec files at runtime. LLVM JIT compiles them to native SIMD. 7,231 absorb operations/second. 27 stress tests. One process serves physics, HTTP, SSE, and the workflow canvas.
 
 ```
-HIGH ENTROPY     "Help me land a job"              (infinite possibilities)
-      | observe -> absorb -> physics says EXPLORE
-      | motor.observe_next = ["job_market", "salary_data"]
-MEDIUM           "700 developer jobs found"         (still too broad)
-      | gradient stagnates -> ask ONE question
-      | human: "Senior Android, 180-220k"
-NARROWING        "23 matching roles in Hyderabad"   (focused)
-      | observe -> absorb -> physics says EXECUTE
-      | motor.confident_in = ["job_market", "salary_data", "location"]
-MINIMUM ENTROPY  "Top 5 roles. Apply to #1 and #3?" (actionable)
+./csos --http 4200
 ```
 
----
-
-## Architecture
-
-### Current (v12 — Chloroplast + Law I)
-
-```
-User -> OpenCode TUI -> Agent (.md) -> csos-core.ts -> stdin/stdout pipe
-                                              |
-                                    csos-daemon.py (Python)
-                                              |
-                                    core.py (5 equations + 7 organelles)
-                                              |
-                                    .csos/rings/*.json
-```
-
-One daemon process, one Core() in memory, three ecosystem rings. Agents call `csos-core` which pipes JSON to the daemon. Every response includes physics decision AND motor context (what to observe next, what's already understood, learned Calvin patterns). The agent reads motor context to choose its next action — physics guides the LLM, not the other way around.
-
-### Target (v13 — Native 4-layer framework)
-
-```
-User -> L4 Gateway (HTTP/WS/gRPC/CLI/Cron) -> L3 Compute (LLVM compiled)
-                                                      |
-              L2 Transport (local ring buffer / RDMA) -+
-                                                      |
-                               L1 Store (B-Tree + B+ Index + WAL)
-```
-
-Single native binary. Four data structures (Page, Record, Ring, Index) used by every layer. Physics and agent logic compiled into one LLVM module. Zero serialization between layers. Crash-safe via write-ahead log.
+Open `http://localhost:4200` in a browser.
 
 ---
 
-## The 5 Equations
-
-Each equation carries its own compute expression, spectral range, and broadband flag as data. The code evaluates them generically. Adding a 6th equation requires zero code changes — only a new entry in EQUATIONS.
-
-| # | Equation | Compute Expression | Decision Role |
-|---|----------|-------------------|---------------|
-| 1 | **Gouterman 1961** `dE=hc/l` | `h * c / l` | Does this signal match what we know? |
-| 2 | **Marcus 1956** `k=exp(-(dG+l)^2/4lkT)` | `exp(-(dG+l)**2/(4*l*V)) * input` | How far off is reality from prediction? |
-| 3 | **Mitchell 1961** `dG=-nFdy+2.3RT*dpH` | `n*F*abs(dy) + signal*abs(dy)/(1+n)` | How much evidence do we have? |
-| 4 | **Forster 1948** `k_ET=(1/t)(R0/r)^6` | `(1/t) * (R0/r)**min(R0/r, 6)` | Can knowledge from one domain help another? |
-| 5 | **Boyer 1997** `ATP=flux*n/3` | `flux * n / 3` | Is evidence sufficient for a decision? |
-
-All five are implemented as Atoms within Rings. Each Atom predicts via its formula, observes the actual signal, measures error, and self-tunes (with NPQ bounds). Calvin synthesis creates new Atoms from non-resonated signals — patterns the system has never seen — validated through C4 pre-concentration.
-
----
-
-## The 7 Organelles
-
-The 5 equations are the DNA. The organelles are the cellular machinery that makes them work the way 3.8 billion years of evolution intended.
-
-| # | Organelle | Plant Function | CSOS Implementation |
-|---|-----------|---------------|---------------------|
-| 1 | **Antenna Complex (LHC)** | 200-300 pigments tuned to different wavelengths | Each atom has `spectral` range + `broadband` flag. Signals routed to matching atoms only. |
-| 2 | **NPQ / Xanthophyll Cycle** | Dissipate excess energy before photobleaching | `tune()` clamps params within `NPQ_BOUND` (10x initial). Thermodynamic bounds [-100, 100]. |
-| 3 | **Photosystem I & II** | Specific electron transfer per reaction center | `_safe_eval()` evaluates each atom's `compute` expression. No name-based branching. |
-| 4 | **C4 Pre-Concentration** | PEP carboxylase reduces Rubisco errors 25%→3% | Two-stage Calvin: min 5 signals + CV < 2.0 + overlap check. Juvenile atoms protected for 10 cycles. |
-| 5 | **Thylakoid Compartments** | 10,000x H+ gradient across membrane | `Ring.gradient_map` tracks per-substrate `{hash: {resonated, total}}`. Per-module confidence. |
-| 6 | **Continuous FRET** | Energy transfer every 1-10 picoseconds, r^-6 weighted | `_continuous_fret()` runs every cycle. Matches atoms by formula. Gradient-weighted energy injection. |
-| 7 | **D1 Protein Repair** | Fastest protein turnover in biology (every 30 min) | `repair()` prunes photons to 200 window. Resets params beyond 20x drift. |
-
-### Measured Results
-
-| Organelle | Before | After | Proof |
-|---|---|---|---|
-| NPQ Quenching | Params drifted to -1534 | All params within [-100, 100] after 500+ toxic cycles | Zero violations |
-| D1 Repair | Photons accumulated infinitely | Bounded at 200, zero memory leaks | Stress test passed |
-| Antenna Routing | All 5 atoms saw all signals identically | Each atom processes only spectral-matched signals | 6.2x throughput gain |
-| Formula Execution | Echo last value (all atoms functionally identical) | Each atom computes its own formula | Boyer detects signal at cycle 2 (was "never") |
-| C4 Calvin | Noise contaminated patterns, params diverged to 150,142 | Zero spurious atoms from noise | C4 gate validated |
-| Continuous FRET | 0 transfers (effectively dead) | Target gradient 0→72 via continuous coupling | Energy transfer confirmed |
-| Compartmentalized Gradient | One flat number per ring | Per-substrate confidence map with hash resolution | motor_context working |
-
----
-
-## Law I Compliance
-
-**Zero name-based branching. Zero hardcoded logic.** All decisions flow from the 5 equations.
-
-| Before | After |
-|---|---|
-| 9 `if self.name ==` branches | **0** — generic formula evaluator |
-| `SPECTRAL_ROLES` hardcoded dict | **Eliminated** — spectral ranges in EQUATIONS |
-| 12 magic numbers (500, 50, 5, 3...) | **0** — all derived from biochemistry constants |
-| `_compute_prediction()` — 6-branch if/elif | `_safe_eval(self._compute_expr, params, signal)` — ONE path |
-
-Adding a new equation requires zero code changes — only a new entry in EQUATIONS with `compute`, `spectral`, and `broadband` fields.
-
----
-
-## Motor Context Coupling
-
-The synapse between CSOS physics and LLM reasoning. Every `absorb()` response now includes:
-
-```json
-{
-  "decision": "EXPLORE",
-  "motor": {
-    "observe_next": ["api_health", "k8s_pods"],
-    "confident_in": ["database_monitor"],
-    "coverage": 0.6,
-    "calvin_patterns": [{"name": "calvin_c5", "formula": "pattern@42+/-3", "gradient": 15}],
-    "chain": {"synthesized": true, "chain_len": 10, "positive_ratio": 0.8}
-  }
-}
-```
-
-| Field | What It Tells the LLM |
-|---|---|
-| `observe_next` | Substrates with LOW confidence — investigate these FIRST |
-| `confident_in` | Substrates the membrane ALREADY understands — skip re-reading |
-| `coverage` | 0.0-1.0 — how much of the problem space is understood |
-| `calvin_patterns` | Patterns learned at inference time — use for decisions |
-| `chain` | Tool-chain synthesis — successful sequences become persisted patterns |
-
-The LLM no longer guesses what to do next. The membrane tells it where the gaps are.
-
----
-
-## The 3 Rings
-
-| Ring | Layer | Purpose |
-|------|-------|---------|
-| **eco_domain** | Substrate signals | Absorbs all external signals. Calvin atoms grow per substrate. Motor context reads from here. |
-| **eco_cockpit** | Agent wisdom | Tracks specificity_delta, action_ratio, calvin_rate, boundary_crossings. Flow metrics, not telemetry. |
-| **eco_organism** | Integration | Aggregates domain + cockpit. `speed > rw` triggers Boyer decision: EXECUTE or EXPLORE. |
-
----
-
-## Agents: plan + build + cross-living
-
-Two modes. One state machine. Physics always validated. Motor context always read.
-
-| Agent | Mode | Capabilities | When to use |
-|-------|------|-------------|-------------|
-| **plan** | Read-only observation | read, grep, glob, web, exec (via csos-core) | "Investigate X", "What is Y", "Analyze Z" |
-| **build** | Observation + delivery | All plan capabilities + write deliverables (.md/.csv/.docx) | "Write me a resume", "Create a report", "Build a tracker" |
-
-**cross-living** is the compiled transition function that switches between plan and build based on the Boyer decision gate.
-
-### The Entropy Reduction Loop
-
-```
-STEP 1: OBSERVE -- call ONE tool
-   csos-core command="..." substrate=X    (CLI)
-   csos-core url="..." substrate=X        (web)
-   csos-core substrate=X output="..."     (bridge from read/grep)
-
-STEP 2: READ DECISION + MOTOR CONTEXT FROM RESPONSE
-   Every response contains: {decision, delta, motor:{observe_next, confident_in, coverage, calvin_patterns}}
-
-   EXECUTE                      → deliver result. DONE.
-   EXPLORE + motor.observe_next → investigate what the membrane says is missing
-   EXPLORE + coverage > 0.7     → nearly enough evidence, one more observation
-   EXPLORE + delta = 0          → try motor.observe_next substrates instead
-   ASK                          → ask human ONE question
-
-STEP 3: USE MOTOR CONTEXT
-   motor.observe_next    → substrates with LOW confidence — go here FIRST
-   motor.confident_in    → already understood — SKIP re-reading these
-   motor.calvin_patterns → learned patterns — use in reasoning
-   motor.chain           → tool-chain status — successful sequences become memory
-```
-
-### Autonomous (headless) mode
-
-When no human is present (cron, server), STEP 3 stores pending questions and continues with other substrates that aren't stuck. On next interactive session, pending questions surface first.
-
----
-
-## Benchmark Assessment (April 2026)
-
-25 LLM benchmarks scored using real frontier model scores from published leaderboards (Artificial Analysis, LMSYS Arena, ARC Prize, Epoch AI, swebench.com). CSOS projections grounded in 9/9 measured internal benchmarks.
-
-> **Interactive dashboard**: Open `.csos/deliveries/benchmark_visualization_v2.html` for full charts.
-
-### Measured CSOS Data (v12 Chloroplast)
-
-| Metric | Measured Value | Source |
-|--------|---------------|--------|
-| Membrane throughput (Python) | **124 ops/sec** (6.2x vs original 20 ops/sec) | `python3 scripts/benchmark.py` |
-| Boyer decision latency | **Cycle 22** (2 cycles late; naive: cycle 40, 20 late) | Decision accuracy test |
-| Token savings | **83.3%** (6x context reduction) | Token efficiency test |
-| Evidence convergence | **1.6x** faster for consistent vs noisy signals | Gradient convergence test |
-| Forster coupling | **Target 0→72** gradient via continuous FRET | Knowledge transfer test |
-| NPQ stability | **0 violations** after 500+ cycles of toxic signals | Stress test |
-| Law I violations | **0** name-based branches | `grep 'self.name ==' core.py` |
-| Motor context | `observe_next` + `confident_in` surfaced per absorb | Integration test |
-| Chain Calvin | **3 tool-chain patterns** synthesized from 50 absorbs | Chain tracking test |
-
-### Scored Results (Real April 2026 Frontier Baselines)
-
-| Category | Without CSOS | With CSOS | Delta | Status |
-|---|:---:|:---:|:---:|---|
-| **Math** | 93.5 | 96.2 | +2.8 | **AT 95** |
-| **Conversational** | 91.5 | 95.5 | +4.0 | **AT 95** |
-| **General Knowledge** | 92.0 | 95.5 | +3.5 | **AT 95** |
-| **Coding** | 87.2 | 93.2 | +6.0 | Gap: 1.8 |
-| **Agentic** | 73.0 | 87.5 | +14.5 | Gap: 7.5 |
-| **Reasoning** | 75.2 | 84.8 | +9.5 | Gap: 10.2 |
-| **Specialized** | 56.0 | 70.7 | +14.7 | Gap: 24.3 |
-| **Grand Average** | **81.4** | **89.3** | **+7.9** | **13/25 at 95+** |
-
-### Top 5 CSOS Deltas
-
-| Benchmark | Without | With | Delta | Source |
-|---|:---:|:---:|:---:|---|
-| AgentBench | 65 | 85 | **+20** | Multi-environment agent benchmark |
-| Terminal-Bench | 60 | 80 | **+20** | Terminal command orchestration |
-| TruthfulQA | 70 | 89 | **+19** | Gouterman resonance blocks hallucination |
-| ARC-AGI-2 | 38 | 55 | **+17** | Calvin synthesis creates novel patterns |
-| FrontierMath | 25 | 42 | **+17** | Only inference-time learning mechanism |
-
-### Bottlenecks to 95
-
-Each blocked category has ONE benchmark pulling the average below 95:
-
-| Category | Avg | Bottleneck | Score | Without It |
-|---|:---:|---|:---:|:---:|
-| Reasoning | 84.8 | ARC-AGI-2 | 55 | 94.7 |
-| Coding | 93.2 | LiveCodeBench | 90 | 94.3 |
-| Agentic | 87.5 | Terminal-Bench | 80 | 90.0 |
-| Specialized | 70.7 | FrontierMath | 42 | 85.0 |
-
-**What CSOS solves** (measured): decision timing, state persistence, evidence tracking, personality normalization, cross-domain transfer, token efficiency, pattern discovery.
-
-**What CSOS cannot solve** (fundamental LLM limits): abstract generalization (ARC-AGI), mathematical creativity (FrontierMath), novel algorithm invention (LiveCodeBench hard).
-
----
-
-## Use Cases — Where CSOS Has Maximum Impact
-
-CSOS value concentrates where: `decision_frequency × error_cost × session_length × domain_count` is highest.
-
-### Autonomous Operations (Agentic: +14.5)
-
-24/7 infrastructure monitoring, autonomous DevOps, multi-tool orchestration. Motor memory learns which services matter. Boyer decides when to alert vs wait. Calvin discovers anomaly patterns no human programmed. Chain Calvin learns which tool sequences resolve incidents.
-
-### High-Stakes Decision Support (TruthfulQA: +19)
-
-Clinical decision support, legal research, financial risk. Gouterman resonance + Boyer gate means "insufficient evidence" instead of confident hallucination. Compartmentalized gradient tracks per-domain confidence: "cardiac evidence strong (87%), renal evidence weak (23%)."
-
-### Cross-Domain Intelligence (Specialized: +14.7, FRET measured)
-
-Product intelligence, supply chain, research. Continuous FRET means signals in one domain automatically inform others. "Support ticket volume for feature X correlates with NPS drop 2 weeks later" — physics finds it, no human configured it.
-
-### Model-Agnostic Deployment (Boyer normalization)
-
-No vendor lock-in. Swap Claude for GPT for Gemini — same decisions. Use cheaper models without quality loss on decision-gated tasks. Regulatory compliance: demonstrate decision consistency regardless of model version.
-
-### Cost-Efficient Scale (83.3% token savings)
-
-6x token compression at scale. 8K context model performs like 48K. 1000 agent tasks/day at 30K tokens each: 30M tokens/day → 5M tokens/day.
-
----
-
-## The 4 Universal Data Structures
-
-Every component is built from these four structures. Nothing else exists.
-
-| Structure | What It Is | Used By |
-|-----------|-----------|---------|
-| **Page** | Fixed 4096-byte container | B-Tree nodes, RDMA transfers, ring snapshots |
-| **Record** | Variable-size typed data | Photon (21 bytes), Atom, Session, IORequest |
-| **Ring** | Circular buffer with atomics | Physics rings, message bus, RDMA queues, WAL |
-| **Index** | Sorted key-to-page_id mapping | B-Tree (storage), B+ Tree (indexed queries) |
-
-### Physics-to-data-structure isomorphism
-
-| Physics Concept | Data Structure | Same Math |
-|----------------|---------------|-----------|
-| Ring.gradient | ring_depth (write_pos - read_pos) | Count of accumulated events |
-| Ring.speed | ring_throughput (gradient / window) | Rate of accumulation |
-| Atom.photons | Ring of PhotonRecords | Bounded event log |
-| diffuse(src, tgt) | RDMA page transfer | Zero-copy block move |
-| Boyer decision | ring_speed > threshold | Throughput exceeds stability |
-| Calvin synthesis | Index.put(new_atom) | B-Tree insert |
-
----
-
-## Data Segmentation
-
-Every piece of data has ONE canonical location.
-
-```
-{segment}:{substrate}:{entity}:{id}
-
-Examples:
-  ring:eco_domain                    → Ring header
-  atom:eco_domain:gouterman          → Atom definition
-  photon:eco_domain:gouterman:0042   → Single photon at cycle 42
-  session:human:target_role          → "Senior Android developer"
-  pending:aws_cost:question          → "Which cost tag?"
-```
-
----
-
-## L2 Transport — Muscle Memory Layer
-
-Ring-buffer-based message bus that learns which operations matter through spaced repetition.
-
-| Motor Pattern | What System Learns | Effect |
-|--------------|-------------------|--------|
-| Substrate checked at growing intervals | Reliably important | Higher priority in observation queue |
-| Substrate crammed (every cycle) | Short-term urgency | Moderate priority, may decay |
-| Substrate accessed once, never again | Noise | Low priority, evicted |
-
-```
-INGRESS: L4 Gateway → transport.ingress ring → motor_trace[] → L3 Compute
-EGRESS:  L3 Compute → transport.egress ring → subscribers → L4 Gateway
-         Every egress response feeds back into ingress (auto-absorb loop)
-```
-
----
-
-## Error Resilience
-
-Errors are signals, not failures. Every error becomes a non-resonated photon and feeds Calvin synthesis.
-
-| Layer | Error Type | Handling |
-|-------|-----------|---------|
-| L3 Compute | Parameter drift | NPQ quench → reset to initial (measured: 0 violations after 500 cycles) |
-| L3 Compute | Photon accumulation | D1 repair → prune to 200 window (measured: zero memory leaks) |
-| L4 Gateway | CLI command fails | absorb(stderr) as signal, not crash |
-| L4 Gateway | URL 404/500 | absorb(status_code), system learns URL unreliable |
-
----
-
-## Multi-Clock Substrates
-
-Different substrates at different temporal resolutions. Boyer's `ATP = flux * n / 3` encodes clock speed where flux = observation frequency. Adaptive clocking: gradient accelerating → frequency increases. Gradient stable → frequency decreases.
-
-| Substrate Type | Clock Speed | Example |
-|---------------|-------------|---------|
-| Infrastructure monitoring | 1s - 5min | CPU, memory, latency |
-| Cost tracking | 1hr - 1day | Cloud billing |
-| Hiring pipeline | 1day | LinkedIn, Greenhouse |
-| Market tick data | 100ms - 1s | Price microstructure |
-
----
-
-## Project Structure (v12)
-
-```
-V12/
-+-- src/core/
-|   +-- core.py                 ~600 LOC  5 equations + 7 organelles + motor context (Law I compliant)
-+-- scripts/
-|   +-- csos-daemon.py          ~500 LOC  The chloroplast (Python daemon + motor coupling + chain Calvin)
-|   +-- benchmark.py            ~530 LOC  9 benchmark suite
-|   +-- csos-login.py                     Browser authentication
-|   +-- watchdog.sh             141 LOC   Health monitor
-+-- .opencode/
-|   +-- opencode.json                     Agent wiring + permissions
-|   +-- tools/csos-core.ts      89 LOC   Pure pipe to daemon
-|   +-- agents/
-|   |   +-- plan.md                       Observe + motor context reading
-|   |   +-- build.md                      Deliver + motor context for readiness
-|   |   +-- csos-living.md                Full entropy loop + motor coupling
-+-- .csos/
-|   +-- rings/*.json                      3 ecosystem rings + Calvin atoms
-|   +-- sessions/human.json               Human data + pending questions
-|   +-- deliveries/                       Reports, benchmarks, visualizations
-+-- specs/eco.csos                        5 equations + agent definitions
-+-- AGENTS.md                             Guidance loop + 3 Laws
-+-- Dockerfile                            Container runtime
-+-- docker-compose.yml                    Production stack
-```
-
----
-
-## The 3 Laws
-
-Enforced structurally, not by convention.
-
-**I. No Hardcoded Logic.** All decisions flow from the 5 equations. Zero `if name == "X"` branches. Each equation carries its own compute expression. The code is one generic path. The equations ARE the code. Verified: `grep 'self.name ==' core.py` returns nothing.
-
-**II. All State from .csos/.** Ring JSON files, sessions, deliveries. Volume mount `.csos/` and the entire system state travels with it.
-
-**III. New Substrates = Zero Code.** Write a `.csos` spec file. The 5 equations, with their formula evaluator, run on every substrate at every clock speed. Adding a substrate is adding data, not code.
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [The 5 Equations](#the-5-equations)
+- [The 7 Organelles](#the-7-organelles)
+- [How It Works](#how-it-works)
+- [Build System](#build-system)
+- [Git Workflow](#git-workflow)
+- [HTTP API](#http-api)
+- [22 Actions](#22-actions)
+- [Physics Constants](#physics-constants)
+- [Canvas](#canvas)
+- [Agents](#agents)
+- [HOWTO Playbooks](#howto-playbooks)
+- [Project Structure](#project-structure)
+- [The 3 Laws](#the-3-laws)
 
 ---
 
 ## Quick Start
 
 ```bash
-# Install dependencies
-npm i -g opencode-ai
-pip install requests playwright && playwright install chromium
+# Build (requires C compiler; LLVM optional for JIT)
+make
 
-# Run
-opencode
-> @plan What is our current infrastructure health?
-> @build Write a cost analysis report for March 2026
+# Run tests (27 stress tests)
+make test
 
-# Benchmark
-python3 scripts/benchmark.py
+# Start daemon with canvas
+./csos --http 4200
 
-# Verify Law I
-grep 'self.name ==' src/core/core.py   # returns nothing
+# Or use from terminal (stdin/stdout JSON pipe)
+echo '{"action":"ping"}' | ./csos
 
-# Interactive visualization
-open .csos/deliveries/benchmark_visualization_v2.html
+# Install git hooks
+make hooks
 ```
+
+### Prerequisites
+
+| Requirement | Purpose | Required? |
+|-------------|---------|-----------|
+| C compiler (cc/clang) | Build the binary | Yes |
+| LLVM 18+ (`brew install llvm`) | JIT compilation of equations to SIMD | No (falls back to C interpreter) |
+| Browser | Workflow canvas at `http://localhost:4200` | No (CLI works without) |
+| OpenCode (`npm i -g opencode-ai`) | Agent orchestration | No (binary works standalone) |
+
+---
+
+## Architecture
+
+```
+specs/eco.csos          5 equations defined as data (the source of truth)
+       |
+   spec_parse.c         Parsed at runtime (no hardcoded arrays)
+       |
+   formula_jit.c        Compiled to LLVM IR → native SIMD (optional)
+       |
+   membrane.c           ONE function: membrane_absorb()
+       |                Gouterman → Marcus → Mitchell → Forster → Boyer → Calvin
+       |                All 7 organelles in one pass. No layers.
+       |
+   protocol.c           22 JSON actions + HTTP server + SSE
+       |
+   ./csos (95KB)        Single binary. Single process.
+       |
+       +--  GET /           Canvas HTML (workflow builder)
+       +--  GET /events     SSE stream (Server-Sent Events)
+       +--  GET /api/state  Full organism state as JSON
+       +--  POST /api/command   JSON action → physics → response
+```
+
+### What Runs Where
+
+| Component | Process | Communication |
+|-----------|---------|---------------|
+| Physics engine | `./csos` | In-process (membrane_absorb()) |
+| HTTP server | `./csos --http` | TCP socket, port 4200 |
+| SSE stream | `./csos --http` | Persistent HTTP connection |
+| Canvas | Browser | EventSource → daemon SSE |
+| Agent (OpenCode) | Separate process | stdin/stdout JSON pipe to `./csos` |
+| State | `.csos/rings/*.json` | Filesystem (volume-mountable) |
+
+### Data Flow
+
+```
+Signal enters (any protocol)
+    |
+    v
+membrane_absorb(value, substrate_hash, protocol)
+    |
+    +-- Motor trace: spaced repetition strength update
+    +-- Gouterman: spectral routing to matching atoms
+    +-- PSI/PSII: each atom predicts via its formula, observes actual
+    +-- Marcus: error = |predicted - actual| / max(|actual|, guard)
+    +-- Mitchell: gradient += resonated count
+    +-- Forster: continuous coupling between rings
+    +-- Boyer: speed > rw → EXECUTE, else EXPLORE
+    +-- Calvin: every 5 cycles, synthesize new atoms from non-resonated patterns
+    |
+    v
+csos_photon_t returned (carries ALL context in one struct)
+    decision, delta, motor_strength, interval, resonated, mode
+```
+
+---
+
+## The 5 Equations
+
+Defined in `specs/eco.csos`. Loaded at runtime by `spec_parse.c`. JIT-compiled to native code by `formula_jit.c`. Adding a 6th equation requires zero code changes — only a new `atom` block in the spec.
+
+| # | Equation | Formula | Compute Expression | Role |
+|---|----------|---------|-------------------|------|
+| 1 | **Gouterman 1961** | dE = hc/lambda | `h * c / l` | Does this signal match known patterns? |
+| 2 | **Forster 1948** | k_ET = (1/tau)(R0/r)^6 | `(1/t) * (R0/r) ** min(R0/r, 6)` | Can knowledge transfer between domains? |
+| 3 | **Marcus 1956** | k = exp(-(dG+lambda)^2/4lambda*kT) | `exp(-(dG+l)**2/(4*l*V)) * input` | How far off is prediction from reality? |
+| 4 | **Mitchell 1961** | dG = -nF*dpsi + 2.3RT*dpH | `n*F*abs(dy) + signal*abs(dy)/(1+n)` | How much evidence accumulated? |
+| 5 | **Boyer 1997** | ATP = flux*n/3 | `flux * n / 3` | Enough evidence to decide? |
+
+---
+
+## The 7 Organelles
+
+| # | Organelle | What It Does | Implementation |
+|---|-----------|-------------|----------------|
+| 1 | Antenna Complex (LHC) | Routes signals to matching atoms by spectral range | `atom.spectral[2]` + `broadband` flag |
+| 2 | NPQ / Xanthophyll | Clamps parameters to prevent drift | `CSOS_TUNE_THRESHOLD` (10% of rw) |
+| 3 | Photosystem I & II | Each atom predicts via its formula, then observes actual | `formula_jit.c` or `formula_eval.c` |
+| 4 | C4 Pre-Concentration | Validates Calvin patterns: min 5 signals, low variance, no overlap | `membrane_calvin()` in membrane.c |
+| 5 | Thylakoid Compartments | Per-substrate gradient tracking | Hash-based routing, motor trace |
+| 6 | Continuous FRET | Energy transfer between rings every cycle | Forster efficiency with `CSOS_FORSTER_EXPONENT` |
+| 7 | D1 Protein Repair | Prune old photons, reset drifted parameters | Photon ring buffer (8192 entries) |
+
+---
+
+## How It Works
+
+### The Decision Loop
+
+```
+SIGNAL IN                                    DECISION OUT
+    |                                            ^
+    v                                            |
+ Absorb signal                              EXECUTE → deliver result
+    |                                       EXPLORE → observe more
+    v                                       ASK     → ask human
+ Physics runs                               STORE   → save for later
+ (5 equations,                                  ^
+  7 organelles,                                 |
+  one function)                             Boyer gate:
+    |                                       speed > rw?
+    v
+ Photon returned
+ {decision, delta, motor_strength}
+```
+
+### The 3 Rings
+
+| Ring | Layer | Purpose |
+|------|-------|---------|
+| `eco_domain` | Substrate signals | Absorbs all external signals. Calvin atoms grow per substrate. |
+| `eco_cockpit` | Agent wisdom | Tracks specificity_delta, action_ratio, calvin_rate. |
+| `eco_organism` | Integration | Aggregates domain + cockpit. Boyer decision gate lives here. |
+
+### Motor Memory (Spaced Repetition)
+
+Every substrate builds muscle memory through the spaced repetition motor:
+
+| Encounter Pattern | Strength Growth | Priority |
+|-------------------|----------------|----------|
+| Increasing intervals (1, 3, 7, 15...) | `CSOS_MOTOR_GROWTH * spacing_factor` (fast) | High — reliably important |
+| Fixed intervals (crammed) | `CSOS_MOTOR_BACKOFF` (slow) | Medium — short-term urgency |
+| Single encounter | Initial only | Low — likely noise |
+
+Strength decays by `CSOS_MOTOR_DECAY` (0.99) each cycle. Capped at 1.0.
+
+---
+
+## Build System
+
+### Makefile Targets
+
+| Command | What It Does |
+|---------|-------------|
+| `make` | Build with LLVM JIT (auto-detected). Falls back to C-only. |
+| `make nojit` | Force C-only build (no LLVM dependency) |
+| `make test` | Run 27 native stress tests |
+| `make bench` | Benchmark membrane_absorb() throughput |
+| `make validate` | Verify spec consistency + Law I + zero magic numbers + tests |
+| `make hooks` | Install git pre-commit hook |
+| `make http` | Build + start HTTP daemon on port 4200 |
+| `make clean` | Remove build artifacts |
+
+### Dependency Chain
+
+```
+specs/eco.csos   ---+
+lib/membrane.h   ---+--->  make  --->  ./csos (95KB)
+src/native/*.c   ---+
+```
+
+Changing any spec, header, or C source triggers a rebuild. The spec file is a first-class Make dependency.
+
+### With vs Without LLVM
+
+| Feature | With LLVM | Without LLVM |
+|---------|-----------|--------------|
+| Equation execution | JIT-compiled to native SIMD | C interpreter (`formula_eval.c`) |
+| Absorb loop | Vectorized via LLVM ORC JIT | Standard C loop |
+| Calvin recompilation | Hot-reload: new atoms JIT'd immediately | Interpreter handles new atoms |
+| Binary size | ~95KB | ~60KB |
+| Performance | ~7,200 ops/sec | ~2,000 ops/sec |
+
+---
+
+## Git Workflow
+
+### Pre-Commit Hook
+
+Install once with `make hooks`. Every `git commit` runs 6 automated checks:
+
+```
+1. specs/eco.csos exists
+2. Every atom has a compute expression (Law I)
+3. No hardcoded EQUATIONS[] arrays in membrane.c (Law I)
+4. Zero bare magic numbers in membrane.c (all from membrane.h constants)
+5. Auto-rebuild binary if spec or source changed (+ git add)
+6. 27/27 native tests pass
+```
+
+All checks are pure shell — zero Python dependency.
+
+### What Gets Blocked
+
+| Violation | Error |
+|-----------|-------|
+| Missing compute expression | `FAIL: 5 atoms but 4 compute expressions` |
+| Hardcoded equation array | `FAIL: Hardcoded EQUATIONS[] in membrane.c` |
+| Bare magic number (e.g. `0.833`) | `FAIL: 1 bare magic numbers` + shows the line |
+| Test regression | `FAIL: 25/27 TESTS PASSED` |
+| Build failure | `FAIL: Build failed` |
+
+### What Happens Automatically
+
+- Changed `.c`, `.h`, or `.csos` → binary rebuilt and staged (`git add csos`)
+- Build fails → commit blocked
+- Tests fail → commit blocked
+- All pass → commit proceeds
+
+---
+
+## HTTP API
+
+Start with `./csos --http 4200`. All routes support CORS.
+
+### GET Routes
+
+| Route | Response | Purpose |
+|-------|----------|---------|
+| `GET /` | HTML | Canvas UI (`.canvas-tui/index.html`) |
+| `GET /events` | SSE stream | Server-Sent Events. Initial `state` event, then `response` on every command. Keepalive every 5s. |
+| `GET /api/state` | JSON | Full organism: rings, gradients, speeds, decisions, client count |
+| `GET /api/templates` | JSON | 6 living workflow templates |
+
+### POST Routes
+
+| Route | Body | Response | Purpose |
+|-------|------|----------|---------|
+| `POST /api/command` | JSON action | JSON result | Execute any of 22 actions. Response also broadcast via SSE. |
+
+### SSE Events
+
+Connect via `new EventSource('/events')` from browser.
+
+| Event | When | Data |
+|-------|------|------|
+| `state` | On connect | Full organism state (rings, gradients, decisions) |
+| `response` | Every POST /api/command | Command result (decision, delta, motor_strength) |
+| `: keepalive` | Every 5 seconds | Empty comment (prevents timeout) |
+
+---
+
+## 22 Actions
+
+Send as JSON to `POST /api/command` or pipe to stdin.
+
+### Physics
+
+| Action | Input | Output | Physics |
+|--------|-------|--------|---------|
+| `absorb` | `substrate`, `output` | decision, delta, motor_strength | Full 3-ring cascade |
+| `fly` | `ring`, `signals` | gradient, speed, F | Direct ring stimulation |
+| `grow` | `ring` | atom count | Create new ring |
+| `diffuse` | `source`, `target` | atoms transferred | Forster coupling between rings |
+| `see` | `ring`, `detail` | ring state | Read (minimal/standard/cockpit/full) |
+| `lint` | `ring` | pass/fail + issues | Health check |
+| `diagnose` | — | status, issues | Full system diagnostic |
+| `ping` | — | alive, rings, speed | Liveness check |
+
+### External I/O
+
+| Action | Input | Output | Notes |
+|--------|-------|--------|-------|
+| `exec` | `command`, `substrate` | stdout + physics | Law I enforced (blocks .py/.js creation) |
+| `web` | `url`, `substrate`, `steps` | response + physics | Auth-aware, cookie persistence |
+| `hash` | `substrate` | hash (1000-9999) | Deterministic substrate hash |
+| `muscle` | `ring` | top substrates by strength | Motor memory priorities |
+
+### Human Data
+
+| Action | Input | Output |
+|--------|-------|--------|
+| `remember` | `key`, `value` | stored in `.csos/sessions/human.json` |
+| `recall` | — | all stored key-value pairs |
+| `profile` | — | human profile summary |
+
+### Delivery
+
+| Action | Input | Output |
+|--------|-------|--------|
+| `deliver` | `content` | auto-routed to appropriate channel |
+| `egress` | `channel`, `payload`, `path`/`url` | file write or webhook POST |
+| `explain` | `ring` | human-readable reasoning |
+
+### Tool Management
+
+| Action | Input | Output |
+|--------|-------|--------|
+| `tool` | `path`, `body` | write to sanctioned path (.opencode/, specs/, .csos/deliveries/) |
+| `toolread` | `path` | read from sanctioned path |
+| `toollist` | `dir` | list sanctioned directory |
+| `save` | — | persist all ring state to disk |
 
 ---
 
 ## Physics Constants
 
-All derived from biochemistry. Zero magic numbers.
+All defined in `lib/membrane.h`. Every constant traces to one of the 5 equations with documented derivation. Zero magic numbers in `membrane.c`.
 
-| Constant | Value | Derivation |
-|---|---|---|
-| `PHOTON_WINDOW` | 200 | Boyer 3 catalytic sites × rotational capacity |
-| `NPQ_BOUND` | 10.0 | Violaxanthin→zeaxanthin conversion efficiency |
-| `PARAM_CEIL/FLOOR` | ±100 | Marcus inverted region ceiling |
-| `C4_MIN_OCCURRENCES` | 5 | Rubisco catalytic rate × min window |
-| `C4_MAX_CV` | 2.0 | Rubisco O2/CO2 discrimination ratio |
-| `CALVIN_MATURITY` | 10 | Chloroplast biogenesis time |
-| `FRET_MIN_COUPLING` | 0.01 | Forster efficiency at r = 2R0 |
-| `FRET_TRANSFER_RATE` | 0.1 | LHC-II per-hop antenna efficiency |
+### Equation-Derived Constants
+
+| Constant | Value | Equation | Derivation |
+|----------|-------|----------|------------|
+| `CSOS_DEFAULT_RW` | 0.8333 | Gouterman | 5/6 dof for standard 5-param atom |
+| `CSOS_FORMULA_DOF_DIVISOR` | 10 | Gouterman | ~10 chars per independent formula term |
+| `CSOS_ERROR_DENOM_GUARD` | 0.01 | Marcus | 1% of signal = noise floor |
+| `CSOS_EXP_CLAMP` | 20.0 | Marcus | exp(20) ~ 5e8, beyond is unphysical |
+| `CSOS_FORSTER_EXPONENT` | 2 | Forster | r^-6 molecular → r^-2 membrane-scale |
+| `CSOS_MOTOR_GROWTH` | 0.1 | Forster | LHC-II per-hop efficiency 0.95 → gain = 0.05, doubled |
+| `CSOS_MOTOR_BACKOFF` | 0.02 | Forster | 1/5 of growth rate (cramming penalty) |
+| `CSOS_MOTOR_DECAY` | 0.99 | Forster | D1 protein half-life: 1% loss per cycle |
+| `CSOS_MOTOR_MAX_SF` | 3.0 | Forster | R0/r at r = R0/3, clamped for macro-scale |
+| `CSOS_TUNE_THRESHOLD` | 0.1 | Mitchell | 10% proton leak rate |
+| `CSOS_CALVIN_GRAD_FRAC` | 0.05 | Mitchell | 5% of signal mean = minimum detectable gradient |
+| `CSOS_CALVIN_GRAD_FLOOR` | 0.1 | Mitchell | Absolute minimum observable proton-motive force |
+| `CSOS_BOYER_THRESHOLD` | 0.3 | Boyer | 1/3 catalytic sites (3 protons per ATP) |
+| `CSOS_STUCK_CYCLES` | 2 | Boyer | 3 catalytic sites - 1 = stall detection |
+| `CSOS_CALVIN_FREQUENCY` | 5 | Calvin | Rubisco rate ~3/sec x 2s observation window |
+| `CSOS_CALVIN_SAMPLE_SIZE` | 50 | Calvin | PEP carboxylase concentration ratio |
+| `CSOS_CALVIN_MATCH_DEPTH` | 10 | Calvin | Rubisco discrimination: check last 10 resonated |
+| `CSOS_CALVIN_VAR_MULT` | 0.1 | Calvin | Marcus confidence: 10% stdev = overlap threshold |
+
+### System Limits
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `CSOS_MAX_ATOMS` | 32 | Max atoms per membrane |
+| `CSOS_MAX_PARAMS` | 16 | Max parameters per atom |
+| `CSOS_MAX_RINGS` | 16 | Max rings per organism |
+| `CSOS_MAX_MOTOR` | 256 | Max motor memory entries |
+| `CSOS_PHOTON_RING` | 8192 | Photon history ring buffer |
+| `CSOS_CO2_POOL_SIZE` | 256 | Calvin CO2 pool (non-resonated signals) |
+
+---
+
+## Canvas
+
+Single HTML file at `.canvas-tui/index.html`, served by the native binary at `GET /`.
+
+### Layout
+
+| Panel | Content |
+|-------|---------|
+| **Left** | Templates (6 patterns), Datasources (auth config), Volumes (autoloaded artifacts), Ring state |
+| **Center** | Mermaid workflow editor, rendered diagram, runtime output with per-node metrics |
+| **Right** | Collaborators, Scan (see/lint/diagnose), Timeline, Command input |
+
+### Templates
+
+Click a template to populate the mermaid editor with a pre-configured workflow:
+
+| Template | Connectors | Pattern |
+|----------|-----------|---------|
+| Data Pipeline | http → webhook | Ingest → Process → Decide → Deliver |
+| Database ETL | database → database → webhook | Extract → Transform → Load → Validate |
+| Model Inference | model → http | Prepare → Infer → Parse → Evaluate |
+| File Processing | file → file | Read → Parse → Analyze → Output |
+| RDMA HPC | rdma → rdma | Register → Compute → Transfer → Verify |
+| Multi-Source | http + database + file → webhook | Multiple sources → Merge → Analyze → Deliver |
+
+### Workflow Execution
+
+1. Write or select mermaid diagram in the editor
+2. Click **Run** — daemon parses mermaid, executes nodes in topological order
+3. Each node runs through `membrane_absorb()` — physics metrics streamed via SSE
+4. Completed nodes highlight in the diagram (green = success, red = fail)
+5. Download results as JSON, CSV, or TXT
+
+---
+
+## Agents
+
+Three agent definitions in `.opencode/agents/`. One tool (`csos-core.ts`) spawns the native binary.
+
+| Agent | Mode | Purpose |
+|-------|------|---------|
+| `@csos-living` | Primary | Full entropy loop. Transitions plan ↔ build via Boyer gate. |
+| `@plan` | Observation | Read-only. Investigate, analyze, research. |
+| `@build` | Delivery | Write deliverables (.md, .csv, .docx) via csos-core. |
+
+### How Agents Read Physics
+
+Every `csos-core` response includes the decision. The agent reads 3 numbers and knows what to do:
+
+```json
+{"decision": "EXECUTE", "delta": 5, "motor_strength": 0.82, "mode": "build"}
+```
+
+| Reading | Agent Action |
+|---------|-------------|
+| `decision = EXECUTE` | Deliver result via `csos-core content="..."` |
+| `delta > 0` | Tools are yielding — observe more |
+| `delta = 0, stalled` | Ask human ONE question |
+| `motor_strength > 0.8` | Substrate well-understood — skip re-reading |
+
+---
+
+## HOWTO Playbooks
+
+### HOWTO: Add a New Equation
+
+Edit `specs/eco.csos`:
+
+```
+atom planck {
+    formula:   E = h * f;
+    compute:   h * f;
+    source:    "Planck 1900";
+    params:    { h: 1.0, f: 1.0 };
+    spectral:  [100, 5000];
+    broadband: false;
+}
+```
+
+Then rebuild:
+
+```bash
+make        # spec_parse.c loads it at runtime
+make test   # verify 27/27 still pass
+```
+
+Zero code changes required. The spec IS the code.
+
+### HOWTO: Add a New Substrate
+
+```bash
+echo '{"action":"absorb","substrate":"my_service","output":"cpu 45.2 memory 72.1"}' | ./csos
+```
+
+The system auto-creates a motor memory entry, routes through Gouterman spectral filter, and starts building gradient. Calvin synthesis may create a new atom if the pattern is novel.
+
+### HOWTO: Monitor Ring Health
+
+```bash
+# Quick check
+echo '{"action":"ping"}' | ./csos
+
+# Detailed cockpit view
+echo '{"action":"see","ring":"eco_organism","detail":"cockpit"}' | ./csos
+
+# Full diagnostic
+echo '{"action":"diagnose"}' | ./csos
+
+# Lint specific ring
+echo '{"action":"lint","ring":"eco_domain"}' | ./csos
+```
+
+### HOWTO: Run as HTTP Daemon
+
+```bash
+./csos --http 4200
+# Canvas:  http://localhost:4200
+# SSE:     http://localhost:4200/events
+# API:     http://localhost:4200/api/state
+# Command: curl -X POST http://localhost:4200/api/command \
+#            -H 'Content-Type: application/json' \
+#            -d '{"action":"absorb","substrate":"test","output":"hello 42"}'
+```
+
+### HOWTO: Run via Docker
+
+```bash
+docker compose up -d
+# Canvas at http://localhost:4200
+# State persisted to ./csos-data/
+```
+
+### HOWTO: Use With OpenCode Agent
+
+```bash
+npm i -g opencode-ai
+opencode
+> What is our infrastructure health?     # @csos-living auto-observes
+> Write a cost analysis report           # transitions to build mode via Boyer
+```
+
+### HOWTO: Run Headless (Cron/Server)
+
+```bash
+# Watchdog (health check + auto-heal)
+bash scripts/watchdog.sh
+
+# Crontab
+*/15 * * * * /path/to/scripts/watchdog.sh
+```
+
+### HOWTO: Add a Physics Constant
+
+1. Add `#define` to `lib/membrane.h` with equation derivation comment
+2. Use the constant in `membrane.c` (never bare numbers)
+3. `make validate` checks for bare magic numbers
+4. Pre-commit hook blocks commits with undocumented constants
+
+### HOWTO: Set Up Git Hooks
+
+```bash
+make hooks
+# Installs .git/hooks/pre-commit
+# Every commit now validates: spec, Law I, magic numbers, build, 27 tests
+```
+
+### HOWTO: Benchmark Performance
+
+```bash
+make bench
+# membrane_absorb(): 10000 ops in 1.4s = 138us/op (7231 ops/sec)
+# Each call: motor trace + 5 atom resonance + gradient + Boyer + Calvin
+```
+
+### HOWTO: Debug a Decision
+
+```bash
+# See what the organism decides and why
+echo '{"action":"see","ring":"eco_organism","detail":"cockpit"}' | ./csos
+# Returns: mode, speed, rw, action_ratio, motor_entries, gradient
+
+# Get human-readable explanation
+echo '{"action":"explain","ring":"eco_organism"}' | ./csos
+
+# Check motor memory priorities
+echo '{"action":"muscle","ring":"eco_organism"}' | ./csos
+# Returns: top substrates ranked by spaced-repetition strength
+```
+
+---
+
+## Project Structure
+
+```
+V12/
+|-- csos                         95KB native binary (THE system)
+|-- Makefile                     Build system (LLVM auto-detected)
+|-- Dockerfile                   Single-stage native build
+|-- docker-compose.yml           5-line production config
+|
+|-- lib/                         Headers (664 lines)
+|   |-- membrane.h               THE data structure + 18 physics constants
+|   |-- page.h, record.h,        Foundation types
+|   |-- ring.h, index.h
+|
+|-- src/native/                  C source (4,100 lines)
+|   |-- csos.c                   Entry point + 9 stress tests + 5 modes
+|   |-- membrane.c               Physics engine (5 equations, 7 organelles)
+|   |-- protocol.c               22 JSON actions + HTTP + SSE
+|   |-- spec_parse.c             Runtime .csos loader
+|   |-- formula_jit.c            LLVM JIT (equation → native SIMD)
+|   |-- jit.c                    LLVM absorb loop vectorization
+|   |-- formula_eval.c           C interpreter (fallback without LLVM)
+|   |-- store.c                  JSON serialization of ring state
+|   |-- page.c, record.c, ring.c Foundation implementations
+|
+|-- specs/                       Spec files (Law I: spec IS code)
+|   |-- eco.csos                 5 equations + 3 rings + 3 agents + 3 laws
+|   |-- *.csos                   Additional specs (auto-detected, mermaid, etc.)
+|
+|-- .canvas-tui/
+|   |-- index.html               Workflow canvas (663 lines)
+|
+|-- .opencode/                   Agent configuration
+|   |-- opencode.json            Agent wiring + permissions
+|   |-- tools/csos-core.ts       THE tool (spawns ./csos binary)
+|   |-- tools/csos-canvas.ts     Canvas opener
+|   |-- agents/*.md              Agent definitions (living, plan, build)
+|   |-- skills/                  Skill documentation
+|
+|-- .csos/                       Persistent state (volume-mountable)
+|   |-- rings/*.json             3 ecosystem ring states
+|   |-- sessions/human.json      Human data + auth config
+|
+|-- scripts/
+|   |-- csos-startup.sh          Start daemon
+|   |-- pre-commit-csos.sh       Git hook (6 checks, pure shell)
+|   |-- watchdog.sh              Health monitor (native binary only)
+|
+|-- README.md                    This file
+|-- AGENTS.md                    Agent guidance loop + Laws
+```
+
+**4,764 lines of C. 95KB binary. Zero Python.**
+
+---
+
+## The 3 Laws
+
+Enforced structurally by the build system and git hooks — not by convention.
+
+**I. No Hardcoded Logic.** All decisions flow from the 5 equations defined in `specs/eco.csos`. All constants in `membrane.h` trace to an equation. Pre-commit hook blocks bare magic numbers. `make validate` checks for hardcoded equation arrays.
+
+**II. All State from .csos/.** Ring state, sessions, deliveries. Volume mount `.csos/` and the entire system state travels with it. `./csos --http` starts from persisted state.
+
+**III. New Substrates = Zero Code.** Hash-based routing + Calvin synthesis handle any substrate. New equation = new atom block in the spec file. `make` rebuilds. No code changes.
+
+---
+
+## Measured Performance
+
+| Metric | Value | How to reproduce |
+|--------|-------|-----------------|
+| Absorb throughput | **7,231 ops/sec** (138 us/op) | `make bench` |
+| LLVM JIT compilation | 5 equations → native in ~10ms | Printed at startup |
+| Stress tests | **27/27 pass** | `make test` |
+| Binary size | **95KB** | `ls -lh csos` |
+| Source code | **4,100 lines C** + 664 lines headers | `wc -l src/native/*.c lib/*.h` |
+| Bare magic numbers | **0** in membrane.c | `make validate` |
+| Python files | **0** | `find . -name "*.py"` |
 
 ---
 

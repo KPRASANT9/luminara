@@ -2,27 +2,44 @@ import { tool } from "@opencode-ai/plugin"
 import { spawn, execSync, ChildProcess } from "child_process"
 
 /*
- * csos-core — Photosystem I.
+ * csos-core — THE tool. Spawns ./csos native binary (95KB, LLVM JIT).
  *
- * NO action enum. The tool infers from which args are present.
- * The args ARE the photon. The daemon resonates with the pattern.
+ * 22 actions auto-inferred from args. No action enum.
+ * The args ARE the photon. The membrane resonates with the pattern.
  *
- * ABSORPTION SPECTRUM (which arg combinations trigger which chemistry):
- *   substrate + command  → exec: run bash, auto-absorb          (CLI interaction)
- *   substrate + output   → absorb: feed signal to 3-ring physics (signal processing)
- *   url                  → web: fetch URL, auto-absorb           (web interaction)
- *   ring                 → see: read ring state                   (state observation)
- *   key + value          → remember: store human data             (human memory)
- *   key (no value)       → recall: retrieve human data            (human recall)
- *   (no args)            → diagnose: check system health          (self-healing)
+ * ABSORPTION SPECTRUM (which args trigger which action):
  *
- * 5 STRUCTURAL ELEMENTS (photosynthetic mapping):
- *   NAME:        "csos-core"              = Pigment identity (Chl a)
- *   DESCRIPTION: (below)                  = Absorption spectrum (Gouterman)
- *   ARGS:        substrate, command, url,  = Antenna complex (funnels intent)
- *                output, ring, key, value
- *   EXECUTE:     pipe(args) → daemon      = Reaction center (pure transduction)
- *   RETURN:      {data, physics}          = Electron output (carries energy + state)
+ *   PHYSICS:
+ *     substrate + output   → absorb: feed signal through membrane (3 compartments)
+ *     substrate + command  → exec: run CLI + auto-absorb stdout (Law I enforced)
+ *     url                  → web: fetch URL + auto-absorb response
+ *     ring + signals       → fly: direct signal injection into ring
+ *     ring                 → see: read ring state (minimal/standard/cockpit/full)
+ *     items (JSON array)   → batch: multiple absorb in one call
+ *
+ *   MEMORY:
+ *     key + value          → remember: store human data
+ *     key (no value)       → recall: retrieve stored data
+ *
+ *   DELIVERY:
+ *     content              → deliver: auto-route output
+ *     channel + payload    → egress: specific channel (file/webhook/slack)
+ *     explain              → explain: human-readable physics reasoning
+ *
+ *   TOOLS:
+ *     toolpath + body      → tool: write to sanctioned path
+ *     toolread             → toolread: read from sanctioned path
+ *     toollist             → toollist: list sanctioned directory
+ *
+ *   DIAGNOSTICS:
+ *     (no args)            → diagnose: system health check
+ *
+ *   ADDITIONAL (via direct JSON pipe):
+ *     grow, diffuse, lint, ping, muscle, hash, profile, save
+ *
+ * Every response carries: decision (Boyer), delta (Mitchell), motor_strength (Forster).
+ * The membrane computes ALL physics — Gouterman → Marcus → Mitchell → Boyer → Calvin.
+ * The LLM reads 3 numbers and knows what to do next.
  */
 
 let d: ChildProcess | null = null
@@ -30,22 +47,11 @@ let ok = false
 
 function boot() {
   if (d && !d.killed && ok) return
-
-  // Try unified membrane binary first, then Python fallback
-  const { existsSync } = require("fs")
   const nativePath = process.cwd() + "/csos"
-  const useNative = existsSync(nativePath)
-
   try {
-    if (useNative) {
-      d = spawn(nativePath, [], {
-        cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"], env: process.env
-      })
-    } else {
-      d = spawn("python3", ["scripts/csos-daemon.py"], {
-        cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"], env: process.env
-      })
-    }
+    d = spawn(nativePath, [], {
+      cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"], env: process.env
+    })
     d.on("exit", () => { d = null; ok = false })
     ok = false; d.stdout!.once("data", () => { ok = true })
     const t = Date.now()
@@ -72,8 +78,8 @@ function pipe(req: object): string {
   } catch {}
   try {
     return execSync(
-      `echo '${JSON.stringify(req).replace(/'/g, "\\'")}' | python3 scripts/csos-daemon.py`,
-      { encoding: "utf-8", timeout: 30000, env: process.env }
+      `echo '${JSON.stringify(req).replace(/'/g, "\\'")}' | ./csos`,
+      { encoding: "utf-8", timeout: 30000, cwd: process.cwd() }
     ).split("\n").filter(l => l.startsWith("{")).pop() || '{"error":"no output"}'
   } catch (e: any) {
     return JSON.stringify({ error: true, message: e.message?.slice(0, 200) })
@@ -82,38 +88,35 @@ function pipe(req: object): string {
 
 export default tool({
   description:
-    "CSOS unified membrane. THE ONLY tool for all I/O. All data and output flows here. " +
-    "20 actions auto-inferred from args: " +
-    "command+substrate=exec CLI (auto-absorb). url=fetch web (auto-absorb). " +
-    "output+substrate=absorb signal. content=deliver (auto-egress). " +
-    "channel+payload=egress to specific channel. explain=reasoning. " +
-    "ring=read state. key+value=remember. key only=recall. no args=diagnose. " +
-    "Do NOT use write/edit/webfetch/websearch/bash tools — everything goes through csos-core.",
+    "CSOS native membrane. THE ONLY tool for all I/O. Spawns ./csos binary (LLVM JIT). " +
+    "22 actions auto-inferred from args. Every response carries decision + delta + motor_strength. " +
+    "command+substrate=exec. url=web. output+substrate=absorb. content=deliver. " +
+    "channel+payload=egress. explain=reasoning. ring=see. key+value=remember. no args=diagnose. " +
+    "Physics: Gouterman(spectral) → Marcus(error) → Mitchell(gradient) → Boyer(decision) → Calvin(synthesis). " +
+    "Do NOT use write/edit/webfetch/websearch/bash — everything through csos-core.",
   args: {
-    substrate: tool.schema.string().optional().describe("What you're operating on (databricks, github, codebase...)"),
-    command: tool.schema.string().optional().describe("Shell command to execute and auto-absorb"),
-    output: tool.schema.string().optional().describe("Raw tool output to absorb into physics"),
-    url: tool.schema.string().optional().describe("URL to fetch and auto-absorb"),
+    substrate: tool.schema.string().optional().describe("What you're operating on"),
+    command: tool.schema.string().optional().describe("Shell command to exec + auto-absorb"),
+    output: tool.schema.string().optional().describe("Raw data to absorb into membrane"),
+    url: tool.schema.string().optional().describe("URL to fetch + auto-absorb"),
     steps: tool.schema.string().optional().describe("JSON web steps: [{action:navigate/type/click/extract,...}]"),
-    ring: tool.schema.string().optional().describe("Ring to read: eco_domain, eco_cockpit, eco_organism"),
-    detail: tool.schema.string().optional().describe("Ring detail level: minimal, standard, cockpit, full"),
+    ring: tool.schema.string().optional().describe("Ring: eco_domain, eco_cockpit, eco_organism"),
+    detail: tool.schema.string().optional().describe("Detail: minimal, standard, cockpit, full"),
     key: tool.schema.string().optional().describe("Field name for remember/recall"),
-    value: tool.schema.string().optional().describe("Field value for remember (omit to recall)"),
-    signals: tool.schema.string().optional().describe("Comma-separated floats for direct fly"),
-    items: tool.schema.string().optional().describe("JSON array of {substrate,output} for batch absorb"),
+    value: tool.schema.string().optional().describe("Field value for remember (omit = recall)"),
+    signals: tool.schema.string().optional().describe("Comma-separated floats for fly"),
+    items: tool.schema.string().optional().describe("JSON array of {substrate,output} for batch"),
     channel: tool.schema.string().optional().describe("Egress channel: file, webhook, slack"),
-    payload: tool.schema.string().optional().describe("Egress payload content"),
+    payload: tool.schema.string().optional().describe("Egress payload"),
     path: tool.schema.string().optional().describe("File path for egress channel=file"),
-    content: tool.schema.string().optional().describe("Deliverable content for auto-egress routing"),
-    explain: tool.schema.string().optional().describe("Ring name to get human-readable reasoning explanation"),
-    toolpath: tool.schema.string().optional().describe("Write to sanctioned path: .opencode/tools/*.ts, .opencode/agents/*.md, specs/*.csos"),
-    body: tool.schema.string().optional().describe("File content for tool/agent/spec creation"),
-    toolread: tool.schema.string().optional().describe("Read a file from sanctioned path"),
-    toollist: tool.schema.string().optional().describe("List files in sanctioned directory"),
+    content: tool.schema.string().optional().describe("Deliverable content (auto-egress)"),
+    explain: tool.schema.string().optional().describe("Ring name for reasoning explanation"),
+    toolpath: tool.schema.string().optional().describe("Write to sanctioned path"),
+    body: tool.schema.string().optional().describe("File content for tool/spec creation"),
+    toolread: tool.schema.string().optional().describe("Read from sanctioned path"),
+    toollist: tool.schema.string().optional().describe("List sanctioned directory"),
   },
   async execute(args) {
-    // ═══ ANTENNA COMPLEX: infer action from which args are present ═══
-    // No switch statement. The args pattern IS the photon wavelength.
     const req: any = {}
 
     if (args.toolpath && args.body) {
