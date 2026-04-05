@@ -21,18 +21,15 @@
 #include <stdlib.h>
 #include <regex.h>
 
-/* ═══ EQUATIONS (5 foundation atoms) ═══ */
-static const struct {
-    const char *name, *formula, *source;
-    const char *params[CSOS_MAX_PARAMS];
-    int param_count;
-} EQUATIONS[5] = {
-    {"gouterman", "dE=hc/l", "Gouterman 1961", {"dE","h","c","l"}, 4},
-    {"forster", "k_ET=(1/t)(R0/r)^6", "Forster 1948", {"k","t","R0","r"}, 4},
-    {"marcus", "k=exp(-(dG+l)^2/4lkT)", "Nobel 1992", {"k","V","l","dG"}, 4},
-    {"mitchell", "dG=-nFdy+2.3RT*dpH", "Nobel 1978", {"dG","n","F","dy"}, 4},
-    {"boyer", "ATP=flux*n/3", "Nobel 1997", {"rate","flux","n"}, 3},
-};
+/* ═══ EQUATIONS ═══
+ * NO hardcoded array. All atoms loaded from specs/eco.csos via csos_spec_parse().
+ * Foundation atoms (Gouterman, Forster, Marcus, Mitchell, Boyer) and Calvin atoms
+ * are all parsed from spec files — the spec IS the code.
+ *
+ * See: csos_membrane_from_spec() in spec_parse.c
+ *      csos_formula_eval() in formula_eval.c
+ *      csos_formula_jit_compile() in formula_jit.c (LLVM path)
+ */
 
 /* ═══ ATOM OPERATIONS ═══ */
 
@@ -47,6 +44,10 @@ void csos_atom_init(csos_atom_t *a, const char *name, const char *formula,
         strncpy(a->param_keys[i], param_keys[i], 31);
         a->params[i] = 1.0;
     }
+    /* Default spectral range — overridden by spec_parse for spec-loaded atoms */
+    a->spectral[0] = 0;
+    a->spectral[1] = 10000;
+    a->broadband = 0;
     a->photon_cap = 256;
     a->photons = (csos_photon_t *)calloc(a->photon_cap, sizeof(csos_photon_t));
     a->local_cap = 256;
@@ -107,20 +108,72 @@ static void atom_tune(csos_atom_t *a) {
 
 /* ═══ MEMBRANE LIFECYCLE ═══ */
 
+/*
+ * csos_membrane_create — spec-driven membrane initialization.
+ *
+ * Tries to load atoms from specs/eco.csos (the genome).
+ * If spec file not found, creates an empty membrane.
+ * The spec IS the code — no hardcoded equation array.
+ *
+ * For full spec-driven creation with ring selection, use
+ * csos_membrane_from_spec() in spec_parse.c instead.
+ */
 csos_membrane_t *csos_membrane_create(const char *name) {
     csos_membrane_t *m = (csos_membrane_t *)calloc(1, sizeof(csos_membrane_t));
     if (!m) return NULL;
     strncpy(m->name, name, CSOS_NAME_LEN - 1);
     m->human_present = 1;
 
-    /* Initialize with 5 equation atoms */
-    for (int i = 0; i < 5; i++) {
-        csos_atom_init(&m->atoms[i], EQUATIONS[i].name, EQUATIONS[i].formula,
-                       EQUATIONS[i].source, EQUATIONS[i].params, EQUATIONS[i].param_count);
-        strncpy(m->atoms[i].born_in, name, CSOS_NAME_LEN - 1);
+    /* Try to load from spec file (the single source of truth) */
+    csos_spec_t spec = {0};
+    const char *spec_paths[] = {"specs/eco.csos", "../specs/eco.csos", NULL};
+    int loaded = 0;
+    for (int i = 0; spec_paths[i]; i++) {
+        if (csos_spec_parse(spec_paths[i], &spec) == 0 && spec.atom_count > 0) {
+            loaded = 1;
+            break;
+        }
     }
-    m->atom_count = 5;
-    m->rw = m->atoms[0].rw;
+
+    if (loaded) {
+        /* Initialize atoms from parsed spec — generic, no name-based logic */
+        int count = 0;
+        for (int i = 0; i < spec.atom_count && count < CSOS_MAX_ATOMS; i++) {
+            const csos_spec_atom_t *sa = &spec.atoms[i];
+            if (strncmp(sa->name, "calvin_", 7) == 0) continue;
+
+            csos_atom_t *a = &m->atoms[count];
+            memset(a, 0, sizeof(*a));
+            strncpy(a->name, sa->name, CSOS_NAME_LEN - 1);
+            strncpy(a->formula, sa->formula, CSOS_FORMULA_LEN - 1);
+            strncpy(a->compute, sa->compute, CSOS_FORMULA_LEN - 1);
+            strncpy(a->source, sa->source, CSOS_NAME_LEN - 1);
+            strncpy(a->born_in, name, CSOS_NAME_LEN - 1);
+            a->param_count = sa->param_count;
+            for (int j = 0; j < sa->param_count; j++) {
+                strncpy(a->param_keys[j], sa->param_keys[j], 31);
+                a->params[j] = sa->param_defaults[j];
+            }
+            a->spectral[0] = sa->spectral[0];
+            a->spectral[1] = sa->spectral[1];
+            a->broadband = sa->broadband;
+            a->photon_cap = 256;
+            a->photons = (csos_photon_t *)calloc(a->photon_cap, sizeof(csos_photon_t));
+            a->local_cap = 256;
+            a->local_photons = (csos_photon_t *)calloc(a->local_cap, sizeof(csos_photon_t));
+            csos_atom_compute_rw(a);
+            count++;
+        }
+        m->atom_count = count;
+    }
+
+    m->rw = m->atom_count > 0 ? m->atoms[0].rw : 0.833;
+
+#ifdef CSOS_HAS_LLVM
+    /* Compile all formula expressions to native code via LLVM */
+    if (m->atom_count > 0) csos_formula_jit_compile(m);
+#endif
+
     return m;
 }
 
@@ -251,14 +304,19 @@ static int membrane_calvin(csos_membrane_t *m) {
 
     if (m->atom_count >= CSOS_MAX_ATOMS) return 0;
 
-    /* Synthesize new atom */
+    /* Synthesize new atom — carries its own compute expression (Law I) */
     csos_atom_t *na = &m->atoms[m->atom_count];
     memset(na, 0, sizeof(csos_atom_t));
     snprintf(na->name, CSOS_NAME_LEN, "calvin_c%u", m->cycles);
     snprintf(na->formula, CSOS_FORMULA_LEN, "pattern@%.1f+/-%.1f", mean, sqrt(var));
+    /* Compute expression: constant prediction from synthesized center value */
+    snprintf(na->compute, CSOS_FORMULA_LEN, "%.6f", mean);
     snprintf(na->source, CSOS_NAME_LEN, "Calvin %s", m->name);
     strncpy(na->born_in, m->name, CSOS_NAME_LEN - 1);
     na->params[0] = mean; na->param_count = 1;
+    strncpy(na->param_keys[0], "c", 31);
+    na->spectral[0] = 0; na->spectral[1] = 10000;
+    na->broadband = 0;
     na->photon_cap = 64;
     na->photons = (csos_photon_t *)calloc(64, sizeof(csos_photon_t));
     na->local_cap = 64;
@@ -266,6 +324,12 @@ static int membrane_calvin(csos_membrane_t *m) {
     csos_atom_compute_rw(na);
     m->atom_count++;
     m->co2_count = 0;
+
+#ifdef CSOS_HAS_LLVM
+    /* Hot-reload: recompile all formulas including the new Calvin atom */
+    csos_formula_jit_check(m);
+#endif
+
     return 1;
 }
 
@@ -415,8 +479,8 @@ int csos_membrane_save(const csos_membrane_t *m, const char *dir) {
     for (int i = 0; i < m->atom_count; i++) {
         if (strncmp(m->atoms[i].name, "calvin_", 7) != 0) continue;
         if (!first) fprintf(f, ",\n");
-        fprintf(f, "    {\"name\":\"%s\",\"formula\":\"%s\",\"center\":%.4f}",
-                m->atoms[i].name, m->atoms[i].formula, m->atoms[i].params[0]);
+        fprintf(f, "    {\"name\":\"%s\",\"formula\":\"%s\",\"compute\":\"%s\",\"center\":%.4f}",
+                m->atoms[i].name, m->atoms[i].formula, m->atoms[i].compute, m->atoms[i].params[0]);
         first = 0;
     }
     fprintf(f, "\n  ]\n}\n");

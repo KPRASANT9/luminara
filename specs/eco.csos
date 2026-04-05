@@ -6,43 +6,58 @@
 // ═══ EQUATIONS (5 atoms, immutable DNA) ═══
 
 atom gouterman {
-    formula: dE = h * c / lambda;
-    source:  "Gouterman 1961";
-    params:  { dE: 1.0, h: 1.0, c: 1.0, lambda: 1.0 };
-    limits:  [ "lambda -> inf -> 0" ];
-    role:    "Does this signal match what we know? (resonance matching)";
+    formula:   dE = h * c / lambda;
+    compute:   h * c / l;
+    source:    "Gouterman 1961";
+    params:    { dE: 1.0, h: 1.0, c: 1.0, l: 1.0 };
+    limits:    [ "l -> inf -> 0" ];
+    spectral:  [500, 10000];
+    broadband: false;
+    role:      "Does this signal match what we know? (resonance matching)";
 }
 
 atom forster {
-    formula: k_ET = (1/t) * (R0/r)^6;
-    source:  "Forster 1948";
-    params:  { k: 1.0, t: 1.0, R0: 1.0, r: 1.0 };
-    limits:  [ "r = R0 -> 1/t" ];
-    role:    "Can knowledge from one context help another? (substrate coupling)";
+    formula:   k_ET = (1/t) * (R0/r)^6;
+    compute:   (1 / t) * (R0 / r) ** min(R0 / r, 6);
+    source:    "Forster 1948";
+    params:    { k: 1.0, t: 1.0, R0: 1.0, r: 1.0 };
+    limits:    [ "r = R0 -> 1/t" ];
+    spectral:  [0.001, 10];
+    broadband: false;
+    role:      "Can knowledge from one context help another? (substrate coupling)";
 }
 
 atom marcus {
-    formula: k = exp(-(dG + l)^2 / (4 * l * kT));
-    source:  "Nobel 1992";
-    params:  { k: 1.0, V: 1.0, l: 1.0, dG: 1.0 };
-    limits:  [ "dG = -l -> max" ];
-    role:    "How far off is reality from prediction? (error correction)";
+    formula:   k = exp(-(dG + l)^2 / (4 * l * kT));
+    compute:   exp(-(dG + l) ** 2 / (4 * l * V)) * input;
+    source:    "Nobel 1992";
+    params:    { k: 1.0, V: 1.0, l: 1.0, dG: 1.0 };
+    limits:    [ "dG = -l -> max" ];
+    spectral:  [10, 500];
+    broadband: false;
+    role:      "How far off is reality from prediction? (error correction)";
 }
 
 atom mitchell {
-    formula: dG = -n * F * dy + 2.3 * R * T * dpH;
-    source:  "Nobel 1978";
-    params:  { dG: 1.0, n: 1.0, F: 1.0, dy: 1.0 };
-    limits:  [ "eq" ];
-    role:    "How much evidence do we have? (information capacity)";
+    formula:   dG = -n * F * dy + 2.3 * R * T * dpH;
+    compute:   n * F * abs(dy) + signal * abs(dy) / (1 + n);
+    source:    "Nobel 1978";
+    params:    { dG: 1.0, n: 1.0, F: 1.0, dy: 1.0 };
+    limits:    [ "eq" ];
+    spectral:  [0, 10000];
+    broadband: true;
+    role:      "How much evidence do we have? (information capacity)";
 }
 
 atom boyer {
-    formula: ATP = flux * n / 3;
-    source:  "Nobel 1997";
-    params:  { rate: 1.0, flux: 1.0, n: 1.0 };
-    limits:  [ "flux = 0 -> 0" ];
-    role:    "Is evidence sufficient for a decision? (speed vs resonance_width)";
+    formula:   ATP = flux * n / 3;
+    compute:   flux * n / 3;
+    source:    "Nobel 1997";
+    params:    { rate: 1.0, flux: 1.0, n: 1.0 };
+    limits:    [ "flux = 0 -> 0" ];
+    spectral:  [0.001, 100];
+    broadband: false;
+    role:      "Is evidence sufficient for a decision? (speed vs resonance_width)";
 }
 
 // ═══ RINGS (3 ecosystem compartments) ═══

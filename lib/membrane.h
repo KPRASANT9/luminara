@@ -97,12 +97,15 @@ typedef struct {
 typedef struct {
     char      name[CSOS_NAME_LEN];
     char      formula[CSOS_FORMULA_LEN];
+    char      compute[CSOS_FORMULA_LEN];  /* Evaluable expression (safe-eval compatible) */
     char      source[CSOS_NAME_LEN];
     char      born_in[CSOS_NAME_LEN];
     double    params[CSOS_MAX_PARAMS];
     char      param_keys[CSOS_MAX_PARAMS][32];
     int       param_count;
     int       limit_count;
+    double    spectral[2];      /* Absorption range [lo, hi] */
+    int       broadband;        /* 1 = absorbs across full spectrum */
     double    rw;               /* Precomputed resonance_width */
 
     /* Photon history (evidence this atom has accumulated) */
@@ -230,5 +233,61 @@ int  csos_membrane_rdma_register(csos_membrane_t *m);  /* Register for remote ac
 int  csos_membrane_rdma_diffuse(csos_membrane_t *src, const char *remote_name,
                                  uint32_t remote_node); /* Cross-node Forster transfer */
 double csos_membrane_coupling_strength(const csos_membrane_t *m, const char *peer);
+
+/* ═══ SPEC PARSER (reads .csos files — no hardcoded equations) ═══ */
+
+/* Parsed atom definition from .csos spec */
+typedef struct {
+    char   name[CSOS_NAME_LEN];
+    char   formula[CSOS_FORMULA_LEN];
+    char   compute[CSOS_FORMULA_LEN];
+    char   source[CSOS_NAME_LEN];
+    char   param_keys[CSOS_MAX_PARAMS][32];
+    double param_defaults[CSOS_MAX_PARAMS];
+    int    param_count;
+    double spectral[2];
+    int    broadband;
+} csos_spec_atom_t;
+
+/* Parsed spec result */
+typedef struct {
+    csos_spec_atom_t atoms[CSOS_MAX_ATOMS];
+    int              atom_count;
+    char             ring_names[CSOS_MAX_RINGS][CSOS_NAME_LEN];
+    int              ring_count;
+} csos_spec_t;
+
+/* Parse a .csos spec file. Returns 0 on success. */
+int  csos_spec_parse(const char *path, csos_spec_t *spec);
+
+/* Load Calvin atoms from .mem.json files into spec. Returns atoms added. */
+int  csos_spec_load_calvin(const char *rings_dir, csos_spec_t *spec);
+
+/* Create membrane from parsed spec (replaces hardcoded EQUATIONS[]) */
+csos_membrane_t *csos_membrane_from_spec(const csos_spec_t *spec, int ring_index);
+
+/* ═══ FORMULA EVALUATION (runtime, non-JIT fallback) ═══ */
+
+/* Evaluate a compute expression with given params and signal value.
+ * Generic: works for ANY equation. No name-based dispatch. */
+double csos_formula_eval(const char *compute, const double *params,
+                         const char param_keys[][32], int param_count,
+                         double signal);
+
+#ifdef CSOS_HAS_LLVM
+/* ═══ FORMULA JIT (compile compute expressions to LLVM IR) ═══ */
+
+/* Compile all atom compute expressions for a membrane into native code.
+ * Returns 0 on success. After this, csos_formula_jit_eval() uses native code. */
+int  csos_formula_jit_compile(csos_membrane_t *m);
+
+/* Evaluate atom i's compute expression using JIT'd code.
+ * Falls back to csos_formula_eval() if JIT not available. */
+double csos_formula_jit_eval(int atom_index, const double *params,
+                             int param_count, double signal);
+
+/* Check if formula JIT needs recompile (after Calvin synthesis) */
+int  csos_formula_jit_check(csos_membrane_t *m);
+#endif
 
 #endif /* CSOS_MEMBRANE_H */

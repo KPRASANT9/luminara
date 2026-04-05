@@ -236,7 +236,10 @@ int csos_jit_check_recompile(csos_membrane_t *m) {
     if (m->atom_count != JIT.atom_count_compiled) {
         fprintf(stderr, "[csos-jit] Calvin synthesis: atoms %d → %d, recompiling...\n",
                 JIT.atom_count_compiled, m->atom_count);
-        return csos_jit_compile(m);
+        int rc = csos_jit_compile(m);
+        /* Also recompile formula expressions for new atoms */
+        csos_formula_jit_check(m);
+        return rc;
     }
     return 0;
 }

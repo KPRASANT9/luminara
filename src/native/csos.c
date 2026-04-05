@@ -19,12 +19,14 @@
  *   The 80% deterministic path (physics + motor + decision) runs in the membrane.
  *   The LLM handles ONLY the 20%: composing human-readable responses.
  */
-#define _POSIX_C_SOURCE 199309L
+#define _POSIX_C_SOURCE 200809L
 #define _DEFAULT_SOURCE
+#define _DARWIN_C_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 /* Unified compilation: membrane + protocol + foundation */
 #include "../../lib/page.h"
@@ -37,12 +39,15 @@
 #include "record.c"
 #include "ring.c"
 #include "store.c"
+#include "spec_parse.c"
+#include "formula_eval.c"
 #include "membrane.c"
 #include "protocol.c"
 
 /* LLVM JIT (when available) */
 #ifdef CSOS_HAS_LLVM
 #include "jit.c"
+#include "formula_jit.c"
 #endif
 
 /* ═══ TEST HELPERS ═══ */
