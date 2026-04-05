@@ -62,13 +62,23 @@ OBSERVE (via csos-core ONLY):
    csos-core url="..." substrate=X        (web — auto-absorb)
    csos-core substrate=X output="..."     (bridge read/grep results)
 
-READ DECISION FROM RESPONSE (not a separate call):
-   Every response contains: {decision, delta, motor_strength, mode}
+READ DECISION + MOTOR CONTEXT FROM RESPONSE (not a separate call):
+   Every response contains: {decision, delta, motor:{observe_next, confident_in, coverage, calvin_patterns, chain}}
 
    EXECUTE → deliver via: csos-core content="[deliverable text]"
-   EXPLORE + delta > 0 → observe more
-   EXPLORE + delta = 0 → check motor_strength, try different approach
+   EXPLORE → read motor.observe_next for WHAT to investigate next
+   EXPLORE + delta = 0 → motor.observe_next tells you which substrates need attention
    ASK → ask human ONE question, store: csos-core key=field value=answer
+
+MOTOR CONTEXT (the membrane's learned intelligence — USE IT):
+   motor.observe_next    → substrates with LOW confidence. Investigate these FIRST.
+   motor.confident_in    → substrates the membrane ALREADY understands. Skip re-reading these.
+   motor.coverage        → 0.0-1.0. How much of the problem space is understood.
+   motor.calvin_patterns → patterns the membrane learned at inference time. Use for decisions.
+   motor.chain           → tool-chain synthesis status. Successful sequences become patterns.
+
+   Example: if motor.observe_next = ["api_health"] and motor.confident_in = ["database_monitor"],
+   → DO observe api_health next. DON'T re-read database_monitor — membrane already has it.
 ```
 
 ## Delivering (ONLY through csos-core)

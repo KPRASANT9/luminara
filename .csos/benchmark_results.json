@@ -5,12 +5,12 @@
       "category": "Membrane Throughput",
       "passed": true,
       "metrics": {
-        "operations": 5000,
-        "elapsed": 2850.118,
-        "ops_per_sec": 2,
-        "us_per_op": 570023.6,
-        "gradient_after": 5356,
-        "speed_after": 0.1785
+        "operations": 500,
+        "elapsed": 4.029,
+        "ops_per_sec": 124,
+        "us_per_op": 8058.1,
+        "gradient_after": 547,
+        "speed_after": 0.1823
       },
       "notes": []
     },
@@ -27,50 +27,53 @@
       "passed": true,
       "metrics": {
         "ground_truth_switch": 20,
-        "boyer_switched_at": "never",
+        "boyer_switched_at": 22,
         "naive_switched_at": 40,
+        "boyer_latency": 2,
         "naive_latency": 20,
-        "final_gradient": 69,
-        "final_speed": 0.1971
+        "final_gradient": 344,
+        "final_speed": 1.376
       },
-      "notes": []
+      "notes": [
+        "Boyer detected signal before or same as naive"
+      ]
     },
     {
       "name": "Gradient convergence rate",
       "category": "Evidence Accumulation",
       "passed": true,
       "metrics": {
-        "consistent_final_gradient": 1500,
-        "noisy_final_gradient": 132,
+        "consistent_final_gradient": 600,
+        "noisy_final_gradient": 367,
         "consistent_gradient_curve": [
-          150,
-          300,
+          90,
+          180,
+          270,
+          360,
           450,
+          540,
           600,
-          750,
-          900,
-          1050,
-          1200,
-          1350,
-          1500
+          600,
+          600,
+          600
         ],
         "noisy_gradient_curve": [
-          26,
-          36,
-          46,
-          55,
-          62,
+          35,
           75,
-          95,
-          112,
-          122,
-          132
+          115,
+          154,
+          194,
+          234,
+          274,
+          307,
+          337,
+          367
         ],
-        "consistent_speed": 3.0,
-        "noisy_speed": 0.22
+        "consistent_speed": 1.2,
+        "noisy_speed": 0.734
       },
       "notes": [
-        "Consistent signals accumulate 11.4x faster gradient"
+        "Consistent signals accumulate 1.6x faster gradient"
       ]
     },
     {
@@ -79,13 +82,13 @@
       "passed": true,
       "metrics": {
         "total_cycles": 61,
-        "gradient": 876,
-        "speed": 1.5956,
+        "gradient": 383,
+        "speed": 1.2557,
         "decision": "EXECUTE"
       },
       "notes": [
         "Motor memory tracks substrate hash frequency \u2014 impossible for stateless LLMs",
-        "After 61 absorbs: gradient=876, speed=1.596"
+        "After 61 absorbs: gradient=383, speed=1.256"
       ]
     },
     {
@@ -96,8 +99,8 @@
         "initial_atoms": 5,
         "final_atoms": 5,
         "synthesized": 0,
-        "cycles": 200,
-        "gradient": 1166
+        "cycles": 50,
+        "gradient": 98
       },
       "notes": [
         "No synthesis occurred (patterns resonated with existing atoms or threshold not met)"
@@ -108,11 +111,11 @@
       "category": "Knowledge Transfer",
       "passed": true,
       "metrics": {
-        "source_gradient_before": 1005,
-        "target_gradient_before": 0,
+        "source_gradient_before": 600,
+        "target_gradient_before": 60,
         "source_atoms": 5,
         "target_atoms_before": 5,
-        "target_gradient_after": 0,
+        "target_gradient_after": 72,
         "target_atoms_after": 5,
         "diffusion_result": {
           "n": 0
@@ -145,11 +148,9 @@
       "category": "Multi-Model",
       "passed": true,
       "metrics": {
-        "conservative_boyer_steps": 1,
-        "conservative_boyer_gradient": 5,
+        "conservative_boyer_steps": "never (100 cycles)",
         "conservative_naive_threshold": 0.8,
-        "aggressive_boyer_steps": 1,
-        "aggressive_boyer_gradient": 5,
+        "aggressive_boyer_steps": "never (100 cycles)",
         "aggressive_naive_threshold": 0.3,
         "balanced_boyer_steps": 1,
         "balanced_boyer_gradient": 5,

@@ -32,9 +32,11 @@ Do NOT use write/edit tools — they bypass the membrane.
    - `csos-core url="..." substrate=X`
    - read + absorb: `csos-core substrate=X output="[data]"`
 
-2. **Read decision FROM response**:
+2. **Read decision + motor context FROM response**:
    - `EXECUTE` → compose and deliver
-   - `EXPLORE + delta > 0` → observe more
+   - `EXPLORE` → read `motor.observe_next` for what's missing, `motor.confident_in` for what's ready
+   - `motor.calvin_patterns` → use learned patterns in your deliverable (cite them)
+   - `motor.coverage` → if high (>0.7), you have enough context. If low, observe more.
    - `ASK` → one question
 
 3. **Pre-deliver absorb**:

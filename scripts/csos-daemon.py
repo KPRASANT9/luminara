@@ -80,7 +80,9 @@ except ImportError:
     web = None
     HAS_WEB = False
 
-# ═══ MEMBRANE ═══
+# ═══ MEMBRANE (with motor context coupling + chain tracking) ═══
+_observed_substrates = []  # Track substrate names for hash→name resolution
+
 def absorb(substrate, raw):
     nums = [float(x) for x in re.findall(r'[-+]?\d*\.?\d+', str(raw)) if len(x) < 15][:20]
     h = 1000 + (int(hashlib.md5(substrate.encode()).hexdigest()[:8], 16) % 9000)
@@ -95,14 +97,40 @@ def absorb(substrate, raw):
     rw = o.atoms[0].resonance_width if o.atoms else 0.9
     if o.cycles > 0 and o.cycles % 10 == 0:
         core.diffuse('eco_organism', 'eco_domain')
+
+    delta = core.ring('eco_domain').gradient - g0
+
+    # ── Motor Context: the synapse between physics and LLM ──
+    # Track observed substrates for name resolution
+    if substrate not in _observed_substrates:
+        _observed_substrates.append(substrate)
+    # Keep bounded
+    if len(_observed_substrates) > 50:
+        _observed_substrates[:] = _observed_substrates[-50:]
+
+    # Motor context reads from eco_domain (where substrate signals live)
+    # not eco_organism (which only sees aggregate gradient/speed numbers)
+    motor = d.motor_context(_observed_substrates)
+
+    # ── Tool-Chain Calvin: learn successful action sequences ──
+    chain_result = core.chain_absorb('eco_domain', h, delta)
+
     result = {
         'substrate': substrate, 'signals': len(nums),
         'resonated': rd.get('produced', 0), 'calvin': rd.get('synthesized', 0),
-        'delta': core.ring('eco_domain').gradient - g0,
+        'delta': delta,
         'domain': {'grad': d.gradient, 'speed': round(d.speed, 3), 'F': round(d.F, 4)},
         'cockpit': {'grad': k.gradient, 'speed': round(k.speed, 3)},
         'organism': {'grad': o.gradient, 'speed': round(o.speed, 3), 'rw': round(rw, 3)},
-        'decision': 'EXECUTE' if o.speed > rw else 'EXPLORE',
+        'decision': motor['decision'],
+        # ── NEW: Motor Context for LLM prompt coupling ──
+        'motor': {
+            'observe_next': motor['observe_next'],
+            'confident_in': motor['confident_in'],
+            'coverage': motor['coverage'],
+            'calvin_patterns': motor['calvin_patterns'],
+            'chain': chain_result,
+        },
     }
     # SSE: push ring state to canvas on every absorb
     sse_broadcast('absorb', result)
