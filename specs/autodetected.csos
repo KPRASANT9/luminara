@@ -1,0 +1,14 @@
+// CSOS Auto-Generated Spec from Knowledge Scan
+// Scanned: 2026-04-04T12:20:55.681222
+
+atom browser_auto {
+    formula: dE = h * c / lambda;
+    source:  "auto-detected from package.json";
+    params:  { dE: 1.0, h: 1.0, c: 1.0, lambda: 1.0 };
+    role:    "Auto-detected browser integration";
+}
+
+ring autodetected_domain {
+    atoms: [browser_auto];
+    purpose: "Auto-generated from knowledge scan";
+}

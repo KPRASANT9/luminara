@@ -1,0 +1,15 @@
+{
+  "market_sensing_gamma": "0.5",
+  "market_sensing_gradient": "0",
+  "market_sensing_resonance": "0.8",
+  "signal_AAPL_20240403": "price=182.50, volume=45M, change=+1.2%",
+  "signal_SPY_20240403": "price=525.30, volume=78M, change=+0.5%, VIX=18.2"
+,
+  "target_role": "Senior Android Developer"
+,
+  "": ""
+,
+  "": ""
+,
+  "skill:market_spy:check": "curl -s alpha-vantage.co/query?symbol=SPY"
+}

@@ -1,0 +1,132 @@
+// CSOS Ecosystem Specification
+// The 5 equations + agent definitions + ring configuration.
+// This file is the single source of truth for LLVM compilation (Phase 3).
+// Currently used as documentation; compiled in future via src/native/compute/codegen.cpp.
+
+// ═══ EQUATIONS (5 atoms, immutable DNA) ═══
+
+atom gouterman {
+    formula: dE = h * c / lambda;
+    source:  "Gouterman 1961";
+    params:  { dE: 1.0, h: 1.0, c: 1.0, lambda: 1.0 };
+    limits:  [ "lambda -> inf -> 0" ];
+    role:    "Does this signal match what we know? (resonance matching)";
+}
+
+atom forster {
+    formula: k_ET = (1/t) * (R0/r)^6;
+    source:  "Forster 1948";
+    params:  { k: 1.0, t: 1.0, R0: 1.0, r: 1.0 };
+    limits:  [ "r = R0 -> 1/t" ];
+    role:    "Can knowledge from one context help another? (substrate coupling)";
+}
+
+atom marcus {
+    formula: k = exp(-(dG + l)^2 / (4 * l * kT));
+    source:  "Nobel 1992";
+    params:  { k: 1.0, V: 1.0, l: 1.0, dG: 1.0 };
+    limits:  [ "dG = -l -> max" ];
+    role:    "How far off is reality from prediction? (error correction)";
+}
+
+atom mitchell {
+    formula: dG = -n * F * dy + 2.3 * R * T * dpH;
+    source:  "Nobel 1978";
+    params:  { dG: 1.0, n: 1.0, F: 1.0, dy: 1.0 };
+    limits:  [ "eq" ];
+    role:    "How much evidence do we have? (information capacity)";
+}
+
+atom boyer {
+    formula: ATP = flux * n / 3;
+    source:  "Nobel 1997";
+    params:  { rate: 1.0, flux: 1.0, n: 1.0 };
+    limits:  [ "flux = 0 -> 0" ];
+    role:    "Is evidence sufficient for a decision? (speed vs resonance_width)";
+}
+
+// ═══ RINGS (3 ecosystem compartments) ═══
+
+ring eco_domain {
+    atoms: [gouterman, forster, marcus, mitchell, boyer];
+    purpose: "All substrate signals. Calvin atoms grow per substrate.";
+}
+
+ring eco_cockpit {
+    atoms: [gouterman, forster, marcus, mitchell, boyer];
+    purpose: "Agent performance. Wisdom signals, not telemetry.";
+    metrics: [specificity_delta, action_ratio, calvin_rate, boundary_crossings];
+}
+
+ring eco_organism {
+    atoms: [gouterman, forster, marcus, mitchell, boyer];
+    purpose: "Integration layer. speed > rw triggers Boyer EXECUTE decision.";
+}
+
+// ═══ AGENTS (2 modes + cross-living) ═══
+
+agent plan {
+    mode: read_only;
+    loop {
+        observe(choose_source());
+        let result = absorb(observation);
+        if (result.decision == EXECUTE || result.speed > result.rw) {
+            deliver(compose_answer());
+            break;
+        }
+        if (result.action_ratio < 0.3 && result.delta == 0) {
+            ask_human(missing_signal());
+        }
+    }
+}
+
+agent build {
+    mode: read_write;
+    loop {
+        observe(choose_source());
+        let result = absorb(observation);
+        if (result.decision == EXECUTE) {
+            let pre = see(eco_organism, cockpit);
+            write_deliverable(compose_output());
+            let post = absorb(deliverable_meta);
+            if (post.delta <= 0) { flag_for_review(); }
+            break;
+        }
+        if (result.action_ratio < 0.3 && result.delta == 0) {
+            ask_human(missing_signal());
+        }
+    }
+}
+
+agent living {
+    mode: full;
+    let current_mode = plan;
+    loop {
+        step(current_mode);
+        let state = see(eco_organism, cockpit);
+        if (current_mode == plan && state.decision == EXECUTE) {
+            current_mode = build;
+        }
+        if (autonomous && stuck()) {
+            store_pending_question();
+            switch_substrate();
+        }
+    }
+}
+
+// ═══ LAWS (enforced structurally) ═══
+
+law no_hardcoded_logic {
+    enforcement: "All decisions flow from 5 equations. No domain-specific branches.";
+    enforced_by: ["gateway.c:is_build_command()", "opencode.json:bash=deny"];
+}
+
+law all_state_from_csos {
+    enforcement: "Single data.db + meta.idx + wal.log. No distributed config.";
+    enforced_by: ["store.c:base_path=.csos/", "page.h:WAL"];
+}
+
+law zero_code_for_substrates {
+    enforcement: "New substrate = new .csos spec file. Zero code changes.";
+    enforced_by: ["absorb():hash-based routing", "calvin():pattern synthesis"];
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "This system is a NERVOUS SYSTEM. The human provides INTENT, not INSTRUCTIONS.",
+    "ALL data flows through csos-core. ALL output flows through csos-core.",
+    "Do NOT use write/edit tools — deliver via csos-core content= or channel= instead.",
+    "Do NOT use webfetch/websearch — use csos-core url= instead (auto-absorbs).",
+    "Do NOT use bash — use csos-core command= instead (auto-absorbs + law enforcement).",
+    "When using read/glob/grep, ALWAYS absorb results: csos-core substrate=X output=[data].",
+    "The default agent (@csos-living) handles everything. It transitions plan/build via physics.",
+    "Read decision FROM the absorb/exec/web response. Do NOT make separate cockpit calls.",
+    "ONE step at a time. The physics decides the next step."
+  ],
+  "skills": {
+    "csos-core": { "path": ".opencode/skills/csos-core" },
+    "bridge": { "path": ".opencode/skills/bridge" },
+    "specdriven": { "path": ".opencode/skills/specdriven" }
+  },
+  "agent": {
+    "csos-living": {
+      "description": "The nervous system. ALL data and output through csos-core. Physics-driven.",
+      "mode": "primary",
+      "prompt": "{file:agents/csos-living.md}"
+    },
+    "plan": {
+      "description": "Observation mode. ALL data through csos-core. No deliverables.",
+      "mode": "primary",
+      "prompt": "{file:agents/plan.md}"
+    },
+    "build": {
+      "description": "Delivery mode. ALL output through csos-core. No direct file writes.",
+      "mode": "primary",
+      "prompt": "{file:agents/build.md}"
+    }
+  },
+  "permission": {
+    "bash": { "*": "deny" },
+    "csos-core": "allow",
+    "csos-canvas": "allow",
+    "webautomate": "allow",
+    "skill": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "read": "allow",
+    "write": "deny",
+    "edit": "deny",
+    "webfetch": "deny",
+    "websearch": "deny"
+  }
+}

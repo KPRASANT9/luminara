@@ -1,0 +1,13 @@
+[project]
+name = "csos"
+version = "1.0.0"
+description = "Complex Systems Operating System — 5 photosynthetic equations, 475 lines, zero dependencies"
+requires-python = ">=3.10"
+license = "MIT"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

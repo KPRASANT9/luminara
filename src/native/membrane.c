@@ -1,0 +1,849 @@
+/*
+ * CSOS Membrane — The unified photosynthetic process.
+ *
+ * ONE function: membrane_absorb()
+ * ONE data flow: Photon → Gouterman → Marcus → Mitchell → Boyer → Calvin
+ * ONE struct: everything travels in the unified Photon
+ *
+ * This replaces: physics.c + transport.c + agent.c + gateway.c absorb
+ * No layers. No message passing. No serialization between stages.
+ *
+ * The membrane IS the Universal IR:
+ *   Input:  (value, substrate_hash, protocol)
+ *   Output: csos_photon_t with ALL fields populated
+ *   LLM reads the photon. Membrane computes the photon.
+ *   Gradient is the shared language.
+ */
+#include "../../lib/membrane.h"
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <regex.h>
+
+/* ═══ EQUATIONS (5 foundation atoms) ═══ */
+static const struct {
+    const char *name, *formula, *source;
+    const char *params[CSOS_MAX_PARAMS];
+    int param_count;
+} EQUATIONS[5] = {
+    {"gouterman", "dE=hc/l", "Gouterman 1961", {"dE","h","c","l"}, 4},
+    {"forster", "k_ET=(1/t)(R0/r)^6", "Forster 1948", {"k","t","R0","r"}, 4},
+    {"marcus", "k=exp(-(dG+l)^2/4lkT)", "Nobel 1992", {"k","V","l","dG"}, 4},
+    {"mitchell", "dG=-nFdy+2.3RT*dpH", "Nobel 1978", {"dG","n","F","dy"}, 4},
+    {"boyer", "ATP=flux*n/3", "Nobel 1997", {"rate","flux","n"}, 3},
+};
+
+/* ═══ ATOM OPERATIONS ═══ */
+
+void csos_atom_init(csos_atom_t *a, const char *name, const char *formula,
+                    const char *source, const char **param_keys, int param_count) {
+    memset(a, 0, sizeof(*a));
+    strncpy(a->name, name, CSOS_NAME_LEN - 1);
+    strncpy(a->formula, formula, CSOS_FORMULA_LEN - 1);
+    strncpy(a->source, source, CSOS_NAME_LEN - 1);
+    a->param_count = param_count;
+    for (int i = 0; i < param_count && i < CSOS_MAX_PARAMS; i++) {
+        strncpy(a->param_keys[i], param_keys[i], 31);
+        a->params[i] = 1.0;
+    }
+    a->photon_cap = 256;
+    a->photons = (csos_photon_t *)calloc(a->photon_cap, sizeof(csos_photon_t));
+    a->local_cap = 256;
+    a->local_photons = (csos_photon_t *)calloc(a->local_cap, sizeof(csos_photon_t));
+    csos_atom_compute_rw(a);
+}
+
+void csos_atom_compute_rw(csos_atom_t *a) {
+    int fc = (int)strlen(a->formula) / 10;
+    if (fc < 1) fc = 1;
+    int dof = a->param_count + a->limit_count + fc;
+    a->rw = (double)dof / (double)(dof + 1);
+}
+
+static void atom_grow(csos_photon_t **arr, int *cap, int count) {
+    if (count >= *cap) {
+        *cap = (*cap) * 2;
+        *arr = (csos_photon_t *)realloc(*arr, (*cap) * sizeof(csos_photon_t));
+    }
+}
+
+static double atom_gradient(const csos_atom_t *a) {
+    int g = 0;
+    for (int i = 0; i < a->photon_count; i++)
+        if (a->photons[i].resonated) g++;
+    return (double)g;
+}
+
+static double atom_F(const csos_atom_t *a) {
+    if (a->photon_count == 0) return 1.0;
+    int g = (int)atom_gradient(a);
+    int w = g + 1; if (w < 1) w = 1;
+    int start = a->photon_count - w;
+    if (start < 0) start = 0;
+    double sum = 0; int n = 0;
+    for (int i = start; i < a->photon_count; i++) { sum += a->photons[i].error; n++; }
+    return n > 0 ? sum / n : 1.0;
+}
+
+static void atom_tune(csos_atom_t *a) {
+    if (a->photon_count < 3) return;
+    int g = (int)atom_gradient(a);
+    int w = (g > 0 ? g : 1);
+    if (w > a->photon_count) w = a->photon_count;
+    int start = a->photon_count - w;
+    double bias = 0;
+    for (int i = start; i < a->photon_count; i++)
+        bias += a->photons[i].predicted - a->photons[i].actual;
+    bias /= w;
+    if (fabs(bias) < a->rw * 0.1) return;
+    double lr = 1.0 / (1.0 + g);
+    for (int k = 0; k < a->param_count; k++) {
+        double pv = fabs(a->params[k]);
+        if (pv == 0) pv = 0.01;
+        a->params[k] -= bias * lr * pv;
+    }
+}
+
+/* ═══ MEMBRANE LIFECYCLE ═══ */
+
+csos_membrane_t *csos_membrane_create(const char *name) {
+    csos_membrane_t *m = (csos_membrane_t *)calloc(1, sizeof(csos_membrane_t));
+    if (!m) return NULL;
+    strncpy(m->name, name, CSOS_NAME_LEN - 1);
+    m->human_present = 1;
+
+    /* Initialize with 5 equation atoms */
+    for (int i = 0; i < 5; i++) {
+        csos_atom_init(&m->atoms[i], EQUATIONS[i].name, EQUATIONS[i].formula,
+                       EQUATIONS[i].source, EQUATIONS[i].params, EQUATIONS[i].param_count);
+        strncpy(m->atoms[i].born_in, name, CSOS_NAME_LEN - 1);
+    }
+    m->atom_count = 5;
+    m->rw = m->atoms[0].rw;
+    return m;
+}
+
+static void membrane_free_atoms(csos_membrane_t *m) {
+    for (int i = 0; i < m->atom_count; i++) {
+        free(m->atoms[i].photons);
+        free(m->atoms[i].local_photons);
+    }
+}
+
+/* ═══ MOTOR MEMORY (embedded in membrane) ═══ */
+
+static csos_motor_t *motor_find(csos_membrane_t *m, uint32_t hash) {
+    for (int i = 0; i < m->motor_count; i++)
+        if (m->motor[i].substrate_hash == hash) return &m->motor[i];
+    if (m->motor_count < CSOS_MAX_MOTOR)
+        return &m->motor[m->motor_count++];
+    /* Evict weakest */
+    int w = 0;
+    for (int i = 1; i < m->motor_count; i++)
+        if (m->motor[i].strength < m->motor[w].strength) w = i;
+    m->motor[w] = (csos_motor_t){0};
+    return &m->motor[w];
+}
+
+static void motor_update(csos_membrane_t *m, uint32_t hash,
+                         double *out_strength, uint64_t *out_interval) {
+    csos_motor_t *e = motor_find(m, hash);
+    if (e->substrate_hash == 0) {
+        e->substrate_hash = hash;
+        e->last_seen = m->motor_cycle;
+        e->reps = 1;
+        e->strength = 0.1;
+        *out_strength = 0.1;
+        *out_interval = 0;
+    } else {
+        uint64_t ni = m->motor_cycle - e->last_seen;
+        e->prev_interval = e->interval;
+        e->interval = ni;
+        e->last_seen = m->motor_cycle;
+        e->reps++;
+        if (ni > e->prev_interval && e->prev_interval > 0) {
+            double sf = (double)ni / (double)(e->prev_interval + 1);
+            if (sf > 3.0) sf = 3.0;
+            e->strength += 0.1 * sf;
+        } else if (ni > 0) {
+            e->strength += 0.02;
+        }
+        e->strength *= 0.99;
+        if (e->strength > 1.0) e->strength = 1.0;
+        *out_strength = e->strength;
+        *out_interval = ni;
+    }
+    m->motor_cycle++;
+}
+
+double csos_motor_strength(const csos_membrane_t *m, uint32_t hash) {
+    for (int i = 0; i < m->motor_count; i++)
+        if (m->motor[i].substrate_hash == hash) return m->motor[i].strength;
+    return 0.0;
+}
+
+int csos_motor_top(const csos_membrane_t *m, uint32_t *hashes,
+                   double *strengths, int max) {
+    int c = 0;
+    for (int i = 0; i < m->motor_count && c < max; i++) {
+        if (m->motor[i].substrate_hash == 0) continue;
+        int pos = c;
+        while (pos > 0 && m->motor[i].strength > strengths[pos - 1]) pos--;
+        if (pos < max) {
+            for (int j = (c < max - 1 ? c : max - 2); j > pos; j--) {
+                hashes[j] = hashes[j-1]; strengths[j] = strengths[j-1];
+            }
+            hashes[pos] = m->motor[i].substrate_hash;
+            strengths[pos] = m->motor[i].strength;
+            if (c < max) c++;
+        }
+    }
+    return c;
+}
+
+/* ═══ CALVIN CYCLE (pattern synthesis from non-resonated signals) ═══ */
+
+static int membrane_calvin(csos_membrane_t *m) {
+    if (m->co2_count < 5) return 0;
+    int n = m->co2_count < 50 ? m->co2_count : 50;
+    int start = m->co2_count - n;
+
+    double mean = 0;
+    for (int i = start; i < m->co2_count; i++) mean += m->co2[i];
+    mean /= n;
+
+    double var = 0;
+    if (n > 1) {
+        for (int i = start; i < m->co2_count; i++)
+            var += (m->co2[i] - mean) * (m->co2[i] - mean);
+        var /= (n - 1);
+    }
+
+    /* Check local gradient threshold */
+    int local_grad = 0;
+    for (int i = 0; i < m->atom_count; i++) {
+        for (int j = 0; j < m->atoms[i].local_count; j++)
+            if (m->atoms[i].local_photons[j].resonated) local_grad++;
+    }
+    double co2_mean_full = 0;
+    for (int i = 0; i < m->co2_count; i++) co2_mean_full += m->co2[i];
+    if (m->co2_count > 0) co2_mean_full /= m->co2_count;
+    double thresh = co2_mean_full * 0.05;
+    if (thresh < 0.1) thresh = 0.1;
+    if (local_grad < thresh) return 0;
+
+    /* Check if pattern already captured */
+    for (int i = 0; i < m->atom_count; i++) {
+        csos_atom_t *ex = &m->atoms[i];
+        if (ex->local_count == 0) continue;
+        double rs = 0; int rn = 0;
+        for (int j = ex->local_count - 1; j >= 0 && rn < 10; j--) {
+            if (ex->local_photons[j].resonated) { rs += ex->local_photons[j].actual; rn++; }
+        }
+        if (rn == 0) continue;
+        double em = rs / rn;
+        double vt = sqrt(var) * 0.1;
+        double t = ex->rw > vt ? ex->rw : vt;
+        double ea = fabs(em); if (ea < 1e-10) ea = 1e-10;
+        if (fabs(mean - em) / ea < t) return 0;
+    }
+
+    if (m->atom_count >= CSOS_MAX_ATOMS) return 0;
+
+    /* Synthesize new atom */
+    csos_atom_t *na = &m->atoms[m->atom_count];
+    memset(na, 0, sizeof(csos_atom_t));
+    snprintf(na->name, CSOS_NAME_LEN, "calvin_c%u", m->cycles);
+    snprintf(na->formula, CSOS_FORMULA_LEN, "pattern@%.1f+/-%.1f", mean, sqrt(var));
+    snprintf(na->source, CSOS_NAME_LEN, "Calvin %s", m->name);
+    strncpy(na->born_in, m->name, CSOS_NAME_LEN - 1);
+    na->params[0] = mean; na->param_count = 1;
+    na->photon_cap = 64;
+    na->photons = (csos_photon_t *)calloc(64, sizeof(csos_photon_t));
+    na->local_cap = 64;
+    na->local_photons = (csos_photon_t *)calloc(64, sizeof(csos_photon_t));
+    csos_atom_compute_rw(na);
+    m->atom_count++;
+    m->co2_count = 0;
+    return 1;
+}
+
+/* ═══ membrane_absorb: THE ENTIRE PHOTOSYNTHETIC PROCESS ═══ */
+
+csos_photon_t csos_membrane_absorb(csos_membrane_t *m, double value,
+                                    uint32_t substrate_hash, uint8_t protocol) {
+    csos_photon_t ph = {0};
+    ph.actual = value;
+    ph.substrate_hash = substrate_hash;
+    ph.protocol = protocol;
+    ph.cycle = m->cycles;
+
+    /* ── MOTOR TRACE (spaced repetition — before physics) ── */
+    motor_update(m, substrate_hash, &ph.motor_strength, &ph.interval);
+
+    /* ── GOUTERMAN + MARCUS (resonance check, per atom) ── */
+    int produced = 0;
+    for (int i = 0; i < m->atom_count; i++) {
+        csos_atom_t *a = &m->atoms[i];
+
+        /* Predict from last resonated value */
+        double pred = value;
+        for (int j = a->photon_count - 1; j >= 0; j--) {
+            if (a->photons[j].resonated) { pred = a->photons[j].actual; break; }
+        }
+
+        /* Marcus: error = |predicted - actual| / max(|actual|, |predicted|*0.01+1e-10) */
+        double denom = fabs(value);
+        double alt = fabs(pred) * 0.01 + 1e-10;
+        if (alt > denom) denom = alt;
+        double error = fabs(pred - value) / denom;
+        int resonated = (error < a->rw) ? 1 : 0;
+
+        /* Record on atom (unified photon carries context) */
+        csos_photon_t ap = ph;  /* Copy base fields (motor context etc) */
+        ap.predicted = pred;
+        ap.error = error;
+        ap.resonated = resonated;
+
+        atom_grow(&a->photons, &a->photon_cap, a->photon_count);
+        a->photons[a->photon_count++] = ap;
+        atom_grow(&a->local_photons, &a->local_cap, a->local_count);
+        a->local_photons[a->local_count++] = ap;
+
+        if (resonated) produced++;
+
+        /* Calvin CO2 pool */
+        if (!resonated && m->co2_count < CSOS_CO2_POOL_SIZE)
+            m->co2[m->co2_count++] = value;
+    }
+
+    /* ── MITCHELL (gradient update) ── */
+    double g0 = m->gradient;
+    m->gradient += produced;
+    m->signals++;
+    ph.delta = (int32_t)(m->gradient - g0);
+    ph.resonated = (produced > 0);
+    ph.calvin_candidate = (produced == 0);
+
+    /* Update derived metrics */
+    double total = 0;
+    for (int i = 0; i < m->atom_count; i++) total += m->atoms[i].photon_count;
+    m->speed = total > 0 ? m->gradient / total : 0;
+    m->F = 0;
+    for (int i = 0; i < m->atom_count; i++) m->F += atom_F(&m->atoms[i]);
+    if (m->atom_count > 0) m->F /= m->atom_count;
+    m->action_ratio = total > 0 ? m->gradient / total : 0;
+    if (m->f_count < CSOS_FHIST_LEN) m->f_history[m->f_count++] = m->F;
+
+    /* ── TUNE (Marcus error correction — when F rising) ── */
+    if (m->f_count >= 2 && m->f_history[m->f_count-1] > m->f_history[m->f_count-2]) {
+        for (int i = 0; i < m->atom_count; i++) atom_tune(&m->atoms[i]);
+    }
+
+    /* ── BOYER (decision gate) ── */
+    if (m->speed > m->rw) {
+        ph.decision = DECISION_EXECUTE;
+        if (m->mode == MODE_PLAN) m->mode = MODE_BUILD;
+    } else if (m->action_ratio > 0.3 && ph.delta > 0) {
+        ph.decision = DECISION_EXPLORE;
+    } else {
+        if (ph.delta == 0) m->consecutive_zero_delta++;
+        else m->consecutive_zero_delta = 0;
+        if (m->consecutive_zero_delta >= 2 || m->action_ratio < 0.3)
+            ph.decision = m->human_present ? DECISION_ASK : DECISION_STORE;
+        else
+            ph.decision = DECISION_EXPLORE;
+    }
+    m->decision = ph.decision;
+
+    /* ── CALVIN (pattern synthesis — periodic) ── */
+    if (m->cycles > 0 && m->cycles % 5 == 0) membrane_calvin(m);
+
+    /* ── Store in photon ring ── */
+    m->ring[m->ring_head & (CSOS_PHOTON_RING - 1)] = ph;
+    m->ring_head++;
+    m->cycles++;
+
+    return ph;
+}
+
+/* ═══ STATE PERSISTENCE ═══ */
+
+/* Save membrane state to JSON file */
+int csos_membrane_save(const csos_membrane_t *m, const char *dir) {
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s.mem.json", dir, m->name);
+    FILE *f = fopen(path, "w");
+    if (!f) return -1;
+
+    /* Write aggregate state + motor memory */
+    fprintf(f, "{\n  \"name\":\"%s\",\n", m->name);
+    fprintf(f, "  \"gradient\":%.1f,\n  \"speed\":%.6f,\n  \"F\":%.6f,\n", m->gradient, m->speed, m->F);
+    fprintf(f, "  \"rw\":%.6f,\n  \"action_ratio\":%.6f,\n", m->rw, m->action_ratio);
+    fprintf(f, "  \"cycles\":%u,\n  \"signals\":%u,\n", m->cycles, m->signals);
+    fprintf(f, "  \"mode\":%d,\n  \"decision\":%d,\n", m->mode, m->decision);
+    fprintf(f, "  \"consecutive_zero_delta\":%d,\n", m->consecutive_zero_delta);
+    fprintf(f, "  \"atom_count\":%d,\n", m->atom_count);
+
+    /* Motor memory */
+    fprintf(f, "  \"motor_cycle\":%llu,\n  \"motor_count\":%d,\n",
+            (unsigned long long)m->motor_cycle, m->motor_count);
+    fprintf(f, "  \"motor\":[\n");
+    for (int i = 0; i < m->motor_count; i++) {
+        const csos_motor_t *e = &m->motor[i];
+        if (e->substrate_hash == 0) continue;
+        fprintf(f, "    {\"hash\":%u,\"last\":%llu,\"interval\":%llu,"
+                "\"prev\":%llu,\"reps\":%u,\"strength\":%.6f}%s\n",
+                e->substrate_hash, (unsigned long long)e->last_seen,
+                (unsigned long long)e->interval, (unsigned long long)e->prev_interval,
+                e->reps, e->strength, (i < m->motor_count - 1) ? "," : "");
+    }
+    fprintf(f, "  ],\n");
+
+    /* f_history (last 100 entries to keep file small) */
+    int fstart = m->f_count > 100 ? m->f_count - 100 : 0;
+    fprintf(f, "  \"f_history\":[");
+    for (int i = fstart; i < m->f_count; i++) {
+        fprintf(f, "%.4f%s", m->f_history[i], (i < m->f_count - 1) ? "," : "");
+    }
+    fprintf(f, "],\n");
+
+    /* Calvin atoms (names + params only, not full photon history) */
+    fprintf(f, "  \"calvin_atoms\":[\n");
+    int first = 1;
+    for (int i = 0; i < m->atom_count; i++) {
+        if (strncmp(m->atoms[i].name, "calvin_", 7) != 0) continue;
+        if (!first) fprintf(f, ",\n");
+        fprintf(f, "    {\"name\":\"%s\",\"formula\":\"%s\",\"center\":%.4f}",
+                m->atoms[i].name, m->atoms[i].formula, m->atoms[i].params[0]);
+        first = 0;
+    }
+    fprintf(f, "\n  ]\n}\n");
+    fclose(f);
+    return 0;
+}
+
+/* Load membrane state from JSON file */
+int csos_membrane_load(csos_membrane_t *m, const char *dir) {
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s.mem.json", dir, m->name);
+    FILE *f = fopen(path, "r");
+    if (!f) return -1;
+
+    char buf[32768] = {0};
+    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+    if (n == 0) return -1;
+    buf[n] = 0;
+
+    /* Simple extraction — we know the exact format we wrote */
+    char tmp[256];
+    /* Helper: find "key":value in buf */
+    #define LOAD_DOUBLE(key, target) do { \
+        char *p = strstr(buf, "\"" key "\":"); \
+        if (p) { p += strlen("\"" key "\":"); target = strtod(p, NULL); } \
+    } while(0)
+    #define LOAD_INT(key, target) do { \
+        char *p = strstr(buf, "\"" key "\":"); \
+        if (p) { p += strlen("\"" key "\":"); target = (int)strtol(p, NULL, 10); } \
+    } while(0)
+    #define LOAD_UINT(key, target) do { \
+        char *p = strstr(buf, "\"" key "\":"); \
+        if (p) { p += strlen("\"" key "\":"); target = (uint32_t)strtoul(p, NULL, 10); } \
+    } while(0)
+    #define LOAD_U64(key, target) do { \
+        char *p = strstr(buf, "\"" key "\":"); \
+        if (p) { p += strlen("\"" key "\":"); target = (uint64_t)strtoull(p, NULL, 10); } \
+    } while(0)
+
+    LOAD_DOUBLE("gradient", m->gradient);
+    LOAD_DOUBLE("speed", m->speed);
+    LOAD_DOUBLE("F", m->F);
+    LOAD_DOUBLE("rw", m->rw);
+    LOAD_DOUBLE("action_ratio", m->action_ratio);
+    LOAD_UINT("cycles", m->cycles);
+    LOAD_UINT("signals", m->signals);
+    LOAD_INT("mode", m->mode);
+    LOAD_INT("decision", m->decision);
+    LOAD_INT("consecutive_zero_delta", m->consecutive_zero_delta);
+    LOAD_U64("motor_cycle", m->motor_cycle);
+
+    /* Parse motor memory array */
+    char *mstart = strstr(buf, "\"motor\":[");
+    if (mstart) {
+        mstart += strlen("\"motor\":[");
+        m->motor_count = 0;
+        while (*mstart && *mstart != ']' && m->motor_count < CSOS_MAX_MOTOR) {
+            char *entry = strstr(mstart, "{\"hash\":");
+            if (!entry || entry > strchr(mstart, ']')) break;
+            csos_motor_t *e = &m->motor[m->motor_count];
+            memset(e, 0, sizeof(*e));
+            char *p = entry + strlen("{\"hash\":");
+            e->substrate_hash = (uint32_t)strtoul(p, &p, 10);
+            char *lp = strstr(entry, "\"last\":"); if (lp) e->last_seen = strtoull(lp + 7, NULL, 10);
+            char *ip = strstr(entry, "\"interval\":"); if (ip) e->interval = strtoull(ip + 11, NULL, 10);
+            char *pp = strstr(entry, "\"prev\":"); if (pp) e->prev_interval = strtoull(pp + 7, NULL, 10);
+            char *rp = strstr(entry, "\"reps\":"); if (rp) e->reps = (uint32_t)strtoul(rp + 7, NULL, 10);
+            char *sp = strstr(entry, "\"strength\":"); if (sp) e->strength = strtod(sp + 11, NULL);
+            m->motor_count++;
+            mstart = strchr(entry, '}');
+            if (mstart) mstart++; else break;
+        }
+    }
+
+    /* Parse Calvin atoms — recreate them in the membrane */
+    char *cstart = strstr(buf, "\"calvin_atoms\":[");
+    if (cstart) {
+        cstart += strlen("\"calvin_atoms\":[");
+        while (*cstart && *cstart != ']' && m->atom_count < CSOS_MAX_ATOMS) {
+            char *entry = strstr(cstart, "{\"name\":\"");
+            if (!entry || entry > strchr(cstart, ']')) break;
+            /* Extract name */
+            char cname[CSOS_NAME_LEN] = {0}, cformula[CSOS_FORMULA_LEN] = {0};
+            double center = 0;
+            char *np = entry + strlen("{\"name\":\"");
+            int ni = 0; while (*np && *np != '"' && ni < CSOS_NAME_LEN-1) cname[ni++] = *np++;
+            char *fp = strstr(entry, "\"formula\":\"");
+            if (fp) { fp += strlen("\"formula\":\""); int fi=0; while(*fp && *fp!='"' && fi<CSOS_FORMULA_LEN-1) cformula[fi++]=*fp++; }
+            char *cp = strstr(entry, "\"center\":");
+            if (cp) center = strtod(cp + strlen("\"center\":"), NULL);
+
+            /* Check if this Calvin atom already exists (from equation init) */
+            int exists = 0;
+            for (int i = 0; i < m->atom_count; i++)
+                if (strcmp(m->atoms[i].name, cname) == 0) { exists = 1; break; }
+
+            if (!exists && cname[0]) {
+                csos_atom_t *na = &m->atoms[m->atom_count];
+                memset(na, 0, sizeof(csos_atom_t));
+                strncpy(na->name, cname, CSOS_NAME_LEN - 1);
+                strncpy(na->formula, cformula, CSOS_FORMULA_LEN - 1);
+                snprintf(na->source, CSOS_NAME_LEN, "Calvin %s (restored)", m->name);
+                strncpy(na->born_in, m->name, CSOS_NAME_LEN - 1);
+                na->params[0] = center; na->param_count = 1;
+                na->photon_cap = 64;
+                na->photons = (csos_photon_t *)calloc(64, sizeof(csos_photon_t));
+                na->local_cap = 64;
+                na->local_photons = (csos_photon_t *)calloc(64, sizeof(csos_photon_t));
+                csos_atom_compute_rw(na);
+                m->atom_count++;
+            }
+            cstart = strchr(entry, '}');
+            if (cstart) cstart++; else break;
+        }
+    }
+
+    #undef LOAD_DOUBLE
+    #undef LOAD_INT
+    #undef LOAD_UINT
+    #undef LOAD_U64
+
+    (void)tmp;
+    return 0;
+}
+
+/* Save all membranes in organism */
+int csos_organism_save(csos_organism_t *org) {
+    char dir[512];
+    snprintf(dir, sizeof(dir), "%s/.csos/rings", org->root);
+    mkdir(dir, 0755);
+    int saved = 0;
+    for (int i = 0; i < org->count; i++) {
+        if (org->membranes[i] && csos_membrane_save(org->membranes[i], dir) == 0)
+            saved++;
+    }
+    return saved;
+}
+
+/* Load persisted state into organism's membranes */
+int csos_organism_load(csos_organism_t *org) {
+    char dir[512];
+    snprintf(dir, sizeof(dir), "%s/.csos/rings", org->root);
+    int loaded = 0;
+    for (int i = 0; i < org->count; i++) {
+        if (org->membranes[i] && csos_membrane_load(org->membranes[i], dir) == 0)
+            loaded++;
+    }
+    return loaded;
+}
+
+/* ═══ COUPLING TENSOR (Forster strength between membranes) ═══ */
+
+int csos_membrane_couple(csos_membrane_t *a, csos_membrane_t *b) {
+    /* Compute bidirectional coupling strength from gradient ratio */
+    double ga = a->gradient > 0 ? a->gradient : 1;
+    double gb = b->gradient > 0 ? b->gradient : 1;
+    double r = fabs(ga - gb) / (ga + gb);  /* Normalized distance */
+    if (r < 0.001) r = 0.001;
+    double coupling = pow(1.0 / r, 6.0);   /* Forster (1/r)^6 */
+    if (coupling > 1e6) coupling = 1e6;     /* Cap for numerical stability */
+
+    /* Record coupling on both membranes */
+    if (a->coupling_count < CSOS_MAX_RINGS) {
+        strncpy(a->couplings[a->coupling_count].peer_name, b->name, CSOS_NAME_LEN-1);
+        a->couplings[a->coupling_count].coupling = coupling;
+        a->couplings[a->coupling_count].peer_node = 0; /* local */
+        a->coupling_count++;
+    }
+    if (b->coupling_count < CSOS_MAX_RINGS) {
+        strncpy(b->couplings[b->coupling_count].peer_name, a->name, CSOS_NAME_LEN-1);
+        b->couplings[b->coupling_count].coupling = coupling;
+        b->couplings[b->coupling_count].peer_node = 0;
+        b->coupling_count++;
+    }
+    return (coupling > 1.0) ? 1 : 0; /* 1 = coupled, 0 = too far */
+}
+
+double csos_membrane_coupling_strength(const csos_membrane_t *m, const char *peer) {
+    for (int i = 0; i < m->coupling_count; i++)
+        if (strcmp(m->couplings[i].peer_name, peer) == 0) return m->couplings[i].coupling;
+    return 0.0;
+}
+
+/* RDMA stubs — real implementation requires libibverbs */
+int csos_membrane_rdma_register(csos_membrane_t *m) {
+    /* In production: ibv_reg_mr() on the photon ring memory */
+    m->rdma_enabled = 1;
+    m->rdma_mr = NULL;      /* Would be ibv_mr* */
+    m->rdma_rkey = 0;       /* Would be mr->rkey */
+    m->rdma_remote_addr = 0;
+    return 0;
+}
+
+int csos_membrane_rdma_diffuse(csos_membrane_t *src, const char *remote_name,
+                                uint32_t remote_node) {
+    /*
+     * In production with RDMA hardware:
+     *   1. Lookup remote membrane's RDMA endpoint from coupling tensor
+     *   2. ibv_post_send() RDMA READ on remote's photon ring
+     *   3. Copy resonated atoms from remote ring into local membrane
+     *   4. Update local coupling tensor with fresh gradient from remote
+     *
+     * Without RDMA hardware, this degrades to TCP:
+     *   1. Connect to remote node via TCP socket
+     *   2. Send: {"action":"see","ring":"<name>","detail":"full"}
+     *   3. Parse response, extract atom data
+     *   4. Call csos_membrane_diffuse() with parsed atoms
+     */
+    (void)src; (void)remote_name; (void)remote_node;
+    return 0; /* Stub: returns 0 atoms transferred */
+}
+
+/* ═══ ORGANISM (3-ring cascade) ═══ */
+
+int csos_organism_init(csos_organism_t *org, const char *root) {
+    memset(org, 0, sizeof(*org));
+    strncpy(org->root, root, sizeof(org->root) - 1);
+    /* Create ecosystem membranes */
+    const char *names[] = {"eco_domain", "eco_cockpit", "eco_organism"};
+    for (int i = 0; i < 3; i++) {
+        org->membranes[i] = csos_membrane_create(names[i]);
+        org->count++;
+    }
+    /* Load persisted state from previous sessions */
+    int loaded = csos_organism_load(org);
+    if (loaded > 0) {
+        fprintf(stderr, "[csos] Restored state for %d membranes from disk\n", loaded);
+    }
+    return 0;
+}
+
+void csos_organism_destroy(csos_organism_t *org) {
+    /* Auto-save state before shutdown */
+    int saved = csos_organism_save(org);
+    if (saved > 0) {
+        fprintf(stderr, "[csos] Saved state for %d membranes to disk\n", saved);
+    }
+    for (int i = 0; i < org->count; i++) {
+        if (org->membranes[i]) {
+            membrane_free_atoms(org->membranes[i]);
+            free(org->membranes[i]);
+        }
+    }
+}
+
+csos_membrane_t *csos_organism_grow(csos_organism_t *org, const char *name) {
+    csos_membrane_t *existing = csos_organism_find(org, name);
+    if (existing) return existing;
+    if (org->count >= CSOS_MAX_RINGS) return NULL;
+    csos_membrane_t *m = csos_membrane_create(name);
+    org->membranes[org->count++] = m;
+    return m;
+}
+
+csos_membrane_t *csos_organism_find(csos_organism_t *org, const char *name) {
+    for (int i = 0; i < org->count; i++)
+        if (org->membranes[i] && strcmp(org->membranes[i]->name, name) == 0)
+            return org->membranes[i];
+    return NULL;
+}
+
+/* Number extraction from raw text */
+static int extract_nums(const char *raw, double *out, int max) {
+    int n = 0;
+    const char *p = raw;
+    while (*p && n < max) {
+        while (*p && !(*p >= '0' && *p <= '9') && *p != '-' && *p != '+' && *p != '.') p++;
+        if (!*p) break;
+        char *end;
+        double v = strtod(p, &end);
+        if (end > p && (end - p) < 15) { out[n++] = v; p = end; }
+        else p++;
+    }
+    return n;
+}
+
+/* Substrate hash */
+static uint32_t sub_hash(const char *name) {
+    uint32_t h = 0;
+    for (const char *p = name; *p; p++) h = h * 31 + (uint8_t)*p;
+    return 1000 + (h % 9000);
+}
+
+/* 3-ring membrane cascade (replaces gateway_absorb + 3x fly) */
+csos_photon_t csos_organism_absorb(csos_organism_t *org, const char *substrate,
+                                    const char *raw, uint8_t protocol) {
+    double nums[20];
+    int n = extract_nums(raw, nums, 20);
+    uint32_t sh = sub_hash(substrate);
+
+    csos_membrane_t *d = csos_organism_find(org, "eco_domain");
+    csos_membrane_t *k = csos_organism_find(org, "eco_cockpit");
+    csos_membrane_t *o = csos_organism_find(org, "eco_organism");
+
+    double g0 = d ? d->gradient : 0;
+
+    /* Domain: absorb raw signals */
+    csos_photon_t last = {0};
+    csos_membrane_absorb(d, (double)sh, sh, protocol);
+    for (int i = 0; i < n; i++)
+        last = csos_membrane_absorb(d, nums[i], sh, protocol);
+
+    /* Cockpit: absorb domain metrics */
+    if (k && d) {
+        csos_membrane_absorb(k, d->gradient, sh, PROTO_INTERNAL);
+        csos_membrane_absorb(k, d->speed, sh, PROTO_INTERNAL);
+        csos_membrane_absorb(k, d->F, sh, PROTO_INTERNAL);
+    }
+
+    /* Organism: absorb cross-ring metrics */
+    if (o && d && k) {
+        csos_membrane_absorb(o, d->gradient, sh, PROTO_INTERNAL);
+        csos_membrane_absorb(o, k->gradient, sh, PROTO_INTERNAL);
+        last = csos_membrane_absorb(o, o->gradient, sh, PROTO_INTERNAL);
+    }
+
+    /* Periodic Forster diffuse */
+    if (o && o->cycles > 0 && o->cycles % 10 == 0)
+        csos_membrane_diffuse(o, d);
+
+    /* Populate final photon with cascade results */
+    last.delta = (int32_t)(d ? d->gradient - g0 : 0);
+    last.decision = o ? o->decision : DECISION_EXPLORE;
+    last.motor_strength = o ? csos_motor_strength(o, sh) : 0;
+    return last;
+}
+
+/* ═══ FORSTER COUPLING (diffuse atoms between membranes) ═══ */
+
+int csos_membrane_diffuse(csos_membrane_t *src, csos_membrane_t *tgt) {
+    int transferred = 0;
+    for (int i = 0; i < src->atom_count; i++) {
+        int exists = 0;
+        for (int j = 0; j < tgt->atom_count; j++)
+            if (strcmp(src->atoms[i].name, tgt->atoms[j].name) == 0) { exists = 1; break; }
+        if (exists) continue;
+        double g = atom_gradient(&src->atoms[i]);
+        if (g <= 0) continue;
+        double r = 1.0 / (1.0 + g);
+        if (pow(1.0 / (r > 1e-10 ? r : 1e-10), 6.0) > 1.0 && tgt->atom_count < CSOS_MAX_ATOMS) {
+            csos_atom_t *na = &tgt->atoms[tgt->atom_count];
+            memcpy(na, &src->atoms[i], sizeof(csos_atom_t));
+            /* Deep copy photon arrays */
+            na->photon_cap = src->atoms[i].photon_count + 16;
+            na->photons = (csos_photon_t *)calloc(na->photon_cap, sizeof(csos_photon_t));
+            memcpy(na->photons, src->atoms[i].photons, src->atoms[i].photon_count * sizeof(csos_photon_t));
+            na->local_cap = 64;
+            na->local_photons = (csos_photon_t *)calloc(64, sizeof(csos_photon_t));
+            na->local_count = 0;
+            char buf[CSOS_NAME_LEN];
+            snprintf(buf, CSOS_NAME_LEN, "%s [%s]", src->atoms[i].source, src->name);
+            strncpy(na->source, buf, CSOS_NAME_LEN - 1);
+            strncpy(na->born_in, src->name, CSOS_NAME_LEN - 1);
+            tgt->atom_count++;
+            transferred++;
+        }
+    }
+    return transferred;
+}
+
+/* ═══ OBSERVATION (see) ═══ */
+
+int csos_membrane_see(const csos_membrane_t *m, const char *detail,
+                      char *json, size_t sz) {
+    if (!detail || strcmp(detail, "minimal") == 0) {
+        snprintf(json, sz, "{\"name\":\"%s\",\"F\":%.4f,\"gradient\":%.0f,\"speed\":%.4f}",
+                 m->name, m->F, m->gradient, m->speed);
+    } else if (strcmp(detail, "standard") == 0) {
+        snprintf(json, sz,
+            "{\"name\":\"%s\",\"F\":%.4f,\"gradient\":%.0f,\"speed\":%.4f,"
+            "\"cycles\":%u,\"atoms\":%d,\"resonance_width\":%.3f}",
+            m->name, m->F, m->gradient, m->speed, m->cycles, m->atom_count, m->rw);
+    } else if (strcmp(detail, "cockpit") == 0) {
+        int total_ph = 0, res_ph = 0, calvin_n = 0;
+        for (int i = 0; i < m->atom_count; i++) {
+            total_ph += m->atoms[i].photon_count;
+            res_ph += (int)atom_gradient(&m->atoms[i]);
+            if (strncmp(m->atoms[i].name, "calvin_", 7) == 0) calvin_n++;
+        }
+        double spec = (double)calvin_n / (m->cycles > 0 ? m->cycles : 1);
+        double ar = (double)res_ph / (total_ph > 0 ? total_ph : 1);
+        double cr = (double)calvin_n / (m->atom_count > 0 ? m->atom_count : 1);
+        int crossings = 0;
+        for (int i = 1; i < m->f_count; i++) {
+            int pa = m->f_history[i-1] > m->rw;
+            int ca = m->f_history[i] > m->rw;
+            if (pa != ca) crossings++;
+        }
+        snprintf(json, sz,
+            "{\"name\":\"%s\",\"F\":%.4f,\"gradient\":%.0f,\"speed\":%.4f,"
+            "\"resonance_width\":%.3f,\"specificity_delta\":%.4f,"
+            "\"action_ratio\":%.4f,\"gradient_gap\":null,"
+            "\"calvin_rate\":%.4f,\"boundary_crossings\":%d,"
+            "\"mode\":\"%s\",\"decision\":\"%s\","
+            "\"motor_entries\":%d,\"motor_cycle\":%llu}",
+            m->name, m->F, m->gradient, m->speed, m->rw,
+            spec, ar, cr, crossings,
+            m->mode == MODE_PLAN ? "plan" : "build",
+            (const char*[]){"EXPLORE","EXECUTE","ASK","STORE"}[m->decision],
+            m->motor_count, (unsigned long long)m->motor_cycle);
+    } else {
+        /* full — include muscle memory top 5 */
+        uint32_t top_h[5]; double top_s[5];
+        int top_n = csos_motor_top(m, top_h, top_s, 5);
+        int pos = snprintf(json, sz,
+            "{\"name\":\"%s\",\"F\":%.4f,\"gradient\":%.0f,\"speed\":%.4f,"
+            "\"cycles\":%u,\"atoms\":%d,\"motor\":[",
+            m->name, m->F, m->gradient, m->speed, m->cycles, m->atom_count);
+        for (int i = 0; i < top_n && pos < (int)sz - 80; i++) {
+            if (i > 0) pos += snprintf(json + pos, sz - pos, ",");
+            pos += snprintf(json + pos, sz - pos, "{\"hash\":%u,\"strength\":%.3f}",
+                            top_h[i], top_s[i]);
+        }
+        snprintf(json + pos, sz - pos, "]}");
+    }
+    return 0;
+}
+
+/* ═══ HEALTH CHECK ═══ */
+
+int csos_membrane_lint(const csos_membrane_t *m, char *json, size_t sz) {
+    int issues = 0;
+    if (m->atom_count == 0) issues++;
+    if (m->F < 0 || m->F > 100) issues++;
+    if (m->speed < 0) issues++;
+    snprintf(json, sz, "{\"ring\":\"%s\",\"status\":\"%s\",\"compliance\":%.3f}",
+             m->name, issues == 0 ? "pass" : "fail", 1.0 - issues * 0.25);
+    return 0;
+}

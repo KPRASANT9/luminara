@@ -1,0 +1,23 @@
+{
+  "name":"ring_0007",
+  "gradient":50.0,
+  "speed":1.000000,
+  "F":0.192897,
+  "rw":0.833333,
+  "action_ratio":1.000000,
+  "cycles":10,
+  "signals":10,
+  "mode":1,
+  "decision":1,
+  "consecutive_zero_delta":0,
+  "atom_count":5,
+  "motor_cycle":10,
+  "motor_count":1,
+  "motor":[
+    {"hash":10,"last":9,"interval":1,"prev":1,"reps":10,"strength":0.262588}
+  ],
+  "f_history":[0.0000,0.2500,0.2778,0.2708,0.2567,0.2417,0.2276,0.2147,0.2032,0.1929],
+  "calvin_atoms":[
+
+  ]
+}

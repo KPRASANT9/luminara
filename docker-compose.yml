@@ -1,0 +1,52 @@
+services:
+  nginx:
+    image: nginx:alpine
+  csos-native:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: csos-native:latest
+    container_name: csos-native
+    ports:
+      - "4098:4097"
+    volumes:
+      - ./csos-data:/app/.csos
+    restart: unless-stopped
+  csos-opencode:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: csos-opencode:latest
+    container_name: csos-opencode
+    ports:
+      - "4099:4096"
+    volumes:
+      - ./csos-data:/app/.csos
+    environment:
+      - OPENCODE_NATIVE_URL=http://csos-native:4097
+    depends_on:
+      - csos-native
+    restart: unless-stopped
+  watchdog:
+    image: csos-opencode:latest
+    container_name: csos-watchdog
+    volumes:
+      - ./csos-data:/app/.csos
+    entrypoint:
+      - /bin/bash
+      - -c
+    command:
+      - |
+        while true; do
+          echo "=== Watchdog cycle ==="
+          sleep 300
+        done
+    restart: unless-stopped
+networks:
+  csos-net:
+    driver: bridge
+volumes:
+  csos-data:
+    driver: local
