@@ -2,41 +2,26 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
     "AGENTS.md",
-    "This system runs on a SINGLE NATIVE BINARY (./csos, 95KB, LLVM JIT). Zero Python.",
-    "ALL data flows through csos-core → ./csos binary → membrane_absorb() → physics response.",
-    "22 actions available. Every response carries: decision, delta, motor_strength.",
-    "Do NOT use write/edit — deliver via csos-core content= or channel=.",
-    "Do NOT use webfetch/websearch — use csos-core url= (auto-absorbs).",
-    "Do NOT use bash — use csos-core command= (auto-absorbs + Law I enforcement).",
-    "ALWAYS absorb read/glob/grep results: csos-core substrate=X output=[data].",
-    "5 equations: Gouterman(spectral) Marcus(error) Mitchell(gradient) Forster(coupling) Boyer(decision).",
-    "17 physics constants in membrane.h — all derived from equations, zero magic numbers.",
-    "ONE step at a time. Read the photon. The physics decides the next step."
+    "ONE agent (@csos-living). ONE tool (csos-core). ONE binary (./csos).",
+    "ALL I/O through csos-core. No bash, write, edit, webfetch, websearch.",
+    "The membrane computes physics. The agent reads the response and acts.",
+    "ONE csos-core call per step. Read the photon. Physics decides the next step."
   ],
   "skills": {
     "csos-core": { "path": ".opencode/skills/csos-core" },
     "bridge": { "path": ".opencode/skills/bridge" },
-    "specdriven": { "path": ".opencode/skills/specdriven" }
+    "specdriven": { "path": ".opencode/skills/specdriven" },
+    "workflow": { "path": ".opencode/skills/workflow" }
   },
   "agent": {
     "csos-living": {
-      "description": "Nervous system. 22 actions through native ./csos binary. Physics-driven.",
+      "description": "The living equation. ONE agent reads physics and acts.",
       "mode": "primary",
       "prompt": "{file:agents/csos-living.md}"
-    },
-    "plan": {
-      "description": "Observation mode. Read-only. Physics decides transition to build.",
-      "mode": "primary",
-      "prompt": "{file:agents/plan.md}"
-    },
-    "build": {
-      "description": "Delivery mode. Output through csos-core. No direct file writes.",
-      "mode": "primary",
-      "prompt": "{file:agents/build.md}"
     }
   },
   "permission": {
-    "bash": { "*": "deny" },
+    "bash": { "csos-exec": "allow", "*": "deny" },
     "csos-core": "allow",
     "csos-canvas": "allow",
     "skill": "allow",

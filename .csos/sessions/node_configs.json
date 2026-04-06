@@ -1,0 +1,1 @@
+{"test_wf":{"fetch":{"command":"echo hello","env":"","timeout":30}},"pipe1":{"fetch":{"command":"echo configured_ok","env":"","timeout":30}}}

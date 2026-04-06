@@ -1,0 +1,18 @@
+{
+  "substrate": "",
+  "decision": "EXECUTE",
+  "insight": "## Available Sources for NavigationnnBased on the sources configuration found in `.csos/sessions/sources.json`, here are all the sources available:nn| Source | Security Level | Auth Type |n|--------|-",
+  "evidence": {
+    "gradient": 62838,
+    "speed": 3491.000,
+    "rw": 0.833,
+    "motor_strength": 0.137,
+    "delta": 36
+  },
+  "rings": {
+    "domain": { "grad": 46757, "speed": 123.369, "F": 97.1200 },
+    "cockpit": { "grad": 101008, "speed": 1052.167 },
+    "organism": { "grad": 62838, "speed": 3491.000 }
+  },
+  "cycle": 13034
+}

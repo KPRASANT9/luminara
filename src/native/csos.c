@@ -5,12 +5,14 @@
  * One binary. One data structure. One process.
  *
  * Modes:
- *   (default)         CLI daemon (stdin/stdout JSON — backward compatible)
- *   --test            All stress tests (8 original + membrane + muscle)
+ *   --seed [PROFILE]  Plant the seed — one command, everything grows
+ *                     Profiles: ops, devops, pipeline (or none for generic)
+ *   --http PORT       HTTP daemon (physics + canvas + SSE)
+ *   --test            27 stress tests
  *   --bench           Benchmark membrane_absorb() throughput
- *   --http PORT       HTTP server
  *   --unix PATH       Unix domain socket daemon
  *   --muscle          Muscle memory demo
+ *   (default)         CLI daemon (stdin/stdout JSON pipe)
  *
  * LLM INTERACTION:
  *   The LLM communicates through the same JSON protocol as any other client.
@@ -27,6 +29,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 /* Unified compilation: membrane + protocol + foundation */
 #include "../../lib/page.h"
@@ -320,8 +323,103 @@ static void run_bench(void) {
     membrane_free_atoms(m); free(m);
 }
 
+/* ═══ SEED: One command to plant the system ═══ */
+/*
+ * The plant lifecycle, mapped to photosynthesis:
+ *
+ *   SEED     = ./csos --seed           Plant it.
+ *   SOIL     = .csos/                  State accumulates here.
+ *   WATER    = signals (metrics, logs) Feed it.
+ *   SUNLIGHT = 5 equations             Physics drives growth.
+ *   ROOTS    = motor memory            Learns what matters.
+ *   LEAVES   = atoms                   Absorb signal types.
+ *   FLOWERS  = Calvin atoms            Patterns discovered.
+ *   FRUIT    = EXECUTE decisions       Alerts, actions, deliverables.
+ *   SEEDS    = .csos/ + specs/         Transplant anywhere.
+ */
+
+static void seed(const char *profile, uint16_t port) {
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  CSOS — Planting the seed\n");
+    fprintf(stderr, "  ========================\n\n");
+
+    /* Create soil (.csos directory) */
+    mkdir(".csos", 0755);
+    mkdir(".csos/rings", 0755);
+    mkdir(".csos/sessions", 0755);
+    fprintf(stderr, "  soil:     .csos/ directory created\n");
+
+    /* Initialize organism (3 ecosystem rings) */
+    csos_organism_t *org = (csos_organism_t *)calloc(1, sizeof(csos_organism_t));
+    csos_organism_init(org, ".");
+    fprintf(stderr, "  roots:    %d rings (eco_domain, eco_cockpit, eco_organism)\n", org->count);
+
+    /* Feed initial signal based on profile */
+    if (profile && strcmp(profile, "ops") == 0) {
+        const char *subs[] = {"cpu_health", "memory_health", "latency_check", "error_rate", "deploy_status"};
+        for (int i = 0; i < 5; i++) {
+            csos_organism_absorb(org, subs[i], "seed_signal 1.0", PROTO_INTERNAL);
+        }
+        fprintf(stderr, "  water:    ops profile — 5 infra substrates planted\n");
+    } else if (profile && strcmp(profile, "devops") == 0) {
+        const char *subs[] = {"codebase_src", "codebase_tests", "ci_pipeline", "deploy_log", "error_log"};
+        for (int i = 0; i < 5; i++) {
+            csos_organism_absorb(org, subs[i], "seed_signal 1.0", PROTO_INTERNAL);
+        }
+        fprintf(stderr, "  water:    devops profile — 5 code substrates planted\n");
+    } else if (profile && strcmp(profile, "pipeline") == 0) {
+        const char *subs[] = {"data_source", "transform_stage", "load_stage", "validate_stage", "deliver_stage"};
+        for (int i = 0; i < 5; i++) {
+            csos_organism_absorb(org, subs[i], "seed_signal 1.0", PROTO_INTERNAL);
+        }
+        fprintf(stderr, "  water:    pipeline profile — 5 data substrates planted\n");
+    } else {
+        csos_organism_absorb(org, "seed", "planted 1.0", PROTO_INTERNAL);
+        fprintf(stderr, "  water:    generic seed — ready for any substrate\n");
+    }
+
+    csos_organism_save(org);
+    fprintf(stderr, "  sunlight: 5 equations loaded from specs/eco.csos\n");
+
+    /* Compact: self-healing bloat removal on every seed */
+    int compacted = csos_compact(".");
+    if (compacted > 0)
+        fprintf(stderr, "  compact:  removed %d bloat artifacts (non-IR specs, prose deliveries, test files)\n", compacted);
+    else
+        fprintf(stderr, "  compact:  clean — no bloat detected\n");
+    fprintf(stderr, "\n");
+
+    /* Start HTTP daemon */
+    fprintf(stderr, "  Growing...\n\n");
+    fprintf(stderr, "  Canvas:   http://localhost:%d\n", port);
+    fprintf(stderr, "  SSE:      http://localhost:%d/events\n", port);
+    fprintf(stderr, "  API:      http://localhost:%d/api/command\n", port);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  Feed it:  curl -X POST http://localhost:%d/api/command \\\n", port);
+    fprintf(stderr, "              -d '{\"action\":\"absorb\",\"substrate\":\"my_service\",\"output\":\"cpu 45.2\"}'\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  The system learns. Motor memory strengthens. Calvin discovers patterns.\n");
+    fprintf(stderr, "  Gradient accumulates. Boyer decides. You harvest the decisions.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "  To transplant: copy .csos/ + specs/ to any host, run ./csos --http %d\n", port);
+    fprintf(stderr, "\n");
+
+    csos_http_loop(org, port);
+    csos_organism_destroy(org); free(org);
+}
+
 /* ═══ MAIN ═══ */
 int main(int argc, char **argv) {
+
+    if (argc > 1 && strcmp(argv[1], "--seed") == 0) {
+        const char *profile = argc > 2 ? argv[2] : NULL;
+        uint16_t port = 4200;
+        /* Check if last arg is a port number */
+        if (argc > 3) port = (uint16_t)atoi(argv[3]);
+        else if (argc > 2 && atoi(argv[2]) > 1000) { port = (uint16_t)atoi(argv[2]); profile = NULL; }
+        seed(profile, port);
+        return 0;
+    }
 
     if (argc > 1 && strcmp(argv[1], "--test") == 0) {
         fprintf(stderr, "CSOS Production Stress Tests (Unified Membrane)\n");

@@ -35,20 +35,29 @@ Open `http://localhost:4200` in a browser.
 ## Quick Start
 
 ```bash
-# Build (requires C compiler; LLVM optional for JIT)
+# Build
 make
 
-# Run tests (27 stress tests)
-make test
+# Plant the seed (one command — everything grows from here)
+./csos --seed
 
-# Start daemon with canvas
-./csos --http 4200
+# Or with a profile:
+./csos --seed ops          # 24/7 infrastructure monitoring
+./csos --seed devops       # Codebase intelligence
+./csos --seed pipeline     # Data pipeline orchestration
 
-# Or use from terminal (stdin/stdout JSON pipe)
-echo '{"action":"ping"}' | ./csos
+# Open http://localhost:4200 in browser
+```
 
-# Install git hooks
-make hooks
+The seed creates `.csos/` state, grows 3 ecosystem rings, plants initial substrates, starts the HTTP daemon with canvas. Feed it signals and it grows — motor memory strengthens, Calvin discovers patterns, Boyer makes decisions.
+
+### Other ways to run
+
+```bash
+./csos --http 4200         # HTTP daemon (no seed, uses existing state)
+echo '{"action":"ping"}' | ./csos   # CLI pipe mode
+make test                  # 27 stress tests
+make hooks                 # Install git pre-commit hook
 ```
 
 ### Prerequisites
@@ -59,6 +68,63 @@ make hooks
 | LLVM 18+ (`brew install llvm`) | JIT compilation of equations to SIMD | No (falls back to C interpreter) |
 | Browser | Workflow canvas at `http://localhost:4200` | No (CLI works without) |
 | OpenCode (`npm i -g opencode-ai`) | Agent orchestration | No (binary works standalone) |
+
+---
+
+## The Plant Lifecycle
+
+CSOS is modeled on photosynthesis. The lifecycle maps directly:
+
+```
+SEED          ./csos --seed ops                 One command. Plant it.
+              Creates .csos/, grows 3 rings,
+              plants initial substrates.
+                    │
+SOIL          .csos/ directory                  State accumulates here.
+              Volume-mount it. Transplant it.
+              cp -r .csos/ /new/host/ → done.
+                    │
+WATER         Feed signals continuously.        The system absorbs.
+              Metrics, logs, events, data.
+              Cron, webhook, agent, manual.
+                    │
+SUNLIGHT      5 equations run automatically.    Physics drives growth.
+              Gouterman → Marcus → Mitchell
+              → Forster → Boyer → Calvin.
+                    │
+ROOTS         Motor memory strengthens.         It learns what matters.
+              Services checked often → strong.
+              Noise → decays (0.99/cycle).
+                    │
+LEAVES        Atoms absorb signal types.        Spectral routing.
+              cpu_resonance catches CPU.
+              latency_gate catches latency.
+                    │
+FLOWERS       Calvin atoms emerge.              Patterns discovered.
+              "CPU 78% + no deploy" →
+              new atom, recognized next time.
+                    │
+FRUIT         Boyer fires: EXECUTE.             Harvest the decision.
+              Alert, report, action, fix.
+              speed > rw = sufficient evidence.
+                    │
+SEEDS         .csos/ + specs/                   Transplant anywhere.
+              Copy state to new host.
+              Same gradient, same memory,
+              same learned patterns. No cold start.
+```
+
+### Transplanting (Moving the System)
+
+```bash
+# On old host:
+tar czf csos-state.tar.gz .csos/ specs/
+
+# On new host:
+tar xzf csos-state.tar.gz
+./csos --http 4200
+# Gradient, motor memory, Calvin atoms — all restored. Zero cold start.
+```
 
 ---
 
@@ -658,6 +724,303 @@ Enforced structurally by the build system and git hooks — not by convention.
 | Source code | **4,100 lines C** + 664 lines headers | `wc -l src/native/*.c lib/*.h` |
 | Bare magic numbers | **0** in membrane.c | `make validate` |
 | Python files | **0** | `find . -name "*.py"` |
+
+---
+
+## Integration & Deployment
+
+### Deployment Topology
+
+```
+┌──────────────────────────────────────────────────────┐
+│  Production Host / Container / VM                    │
+│                                                      │
+│  ./csos --http 4200                                  │
+│  ├── Physics engine (membrane.c)                     │
+│  ├── HTTP server + SSE (protocol.c)                  │
+│  ├── 22 JSON actions                                 │
+│  ├── LLVM JIT (formula_jit.c, optional)              │
+│  └── Canvas served at GET /                          │
+│                                                      │
+│  Persistent state: .csos/  (volume-mountable)        │
+│  Specs loaded at startup: specs/eco.csos             │
+│  Canvas: .canvas-tui/index.html                      │
+│                                                      │
+│  Optional:                                           │
+│  ├── OpenCode agent (separate process, pipes JSON)   │
+│  ├── Watchdog cron (scripts/watchdog.sh)             │
+│  └── External integrations (via exec/web actions)    │
+└──────────────────────────────────────────────────────┘
+```
+
+### Deployment Options
+
+| Method | Command | State Persistence | Scaling |
+|--------|---------|-------------------|---------|
+| **Bare metal** | `./csos --http 4200` | `.csos/` directory | Single process |
+| **Docker** | `docker compose up -d` | `./csos-data` volume | Container restart |
+| **Systemd** | See service file below | `/var/lib/csos/` | Process supervision |
+| **Kubernetes** | Pod + PVC for `.csos/` | PersistentVolumeClaim | StatefulSet (single replica) |
+
+### CI/CD Pipeline
+
+```
+git push
+    │
+    ├── Pre-commit hook (local)
+    │   ├── Spec validation (atom count = compute count)
+    │   ├── Law I check (no hardcoded arrays)
+    │   ├── Magic number check (zero bare constants)
+    │   ├── Rebuild binary if source changed
+    │   └── 27/27 native tests
+    │
+    ├── CI (GitHub Actions / GitLab CI)
+    │   ├── make clean && make           # Build with LLVM JIT
+    │   ├── ./csos --test                # 27 stress tests
+    │   ├── make validate                # Spec + Law I + magic numbers
+    │   ├── docker build -t csos .       # Container build (includes tests)
+    │   └── docker push                  # Registry
+    │
+    └── Deploy
+        ├── docker compose pull && docker compose up -d
+        └── State preserved via .csos/ volume
+```
+
+### HOWTO: GitHub Actions CI
+
+```yaml
+# .github/workflows/ci.yml
+name: CSOS CI
+on: [push, pull_request]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install LLVM
+        run: sudo apt-get install -y llvm-18 llvm-18-dev
+      - name: Build
+        run: make LLVM_PREFIX=/usr/lib/llvm-18
+      - name: Test
+        run: ./csos --test 2>&1 | tail -1 | grep "27/27"
+      - name: Validate
+        run: make validate LLVM_PREFIX=/usr/lib/llvm-18
+      - name: Benchmark
+        run: ./csos --bench
+```
+
+### HOWTO: Systemd Service
+
+```ini
+# /etc/systemd/system/csos.service
+[Unit]
+Description=CSOS Native Membrane Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/csos --http 4200
+WorkingDirectory=/opt/csos
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+sudo cp csos /usr/local/bin/
+sudo mkdir -p /opt/csos/.csos /opt/csos/specs /opt/csos/.canvas-tui
+sudo cp specs/eco.csos /opt/csos/specs/
+sudo cp .canvas-tui/index.html /opt/csos/.canvas-tui/
+sudo systemctl enable csos && sudo systemctl start csos
+```
+
+### HOWTO: Kubernetes Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: csos
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: csos
+        image: csos:latest
+        command: ["/usr/local/bin/csos", "--http", "4200"]
+        ports:
+        - containerPort: 4200
+        volumeMounts:
+        - name: csos-state
+          mountPath: /app/.csos
+        livenessProbe:
+          httpGet: { path: /api/state, port: 4200 }
+          periodSeconds: 30
+  volumeClaimTemplates:
+  - metadata: { name: csos-state }
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources: { requests: { storage: 1Gi } }
+```
+
+### DevOps Requirements
+
+| Requirement | Why | Minimum |
+|-------------|-----|---------|
+| **C compiler** | Build the binary | `cc` (any), `clang` preferred |
+| **LLVM 18+** | JIT compilation (optional) | `brew install llvm` or `apt install llvm-18` |
+| **95KB disk** | Binary size | Trivial |
+| **~10MB RAM** | 3 ecosystem rings + motor memory | Baseline |
+| **1 TCP port** | HTTP/SSE daemon | 4200 default |
+| **Filesystem** | `.csos/` state directory | Volume-mountable |
+| **curl** | Health checks, watchdog | Standard |
+
+**Not required:** Python, Node.js, Docker, databases, message queues, cloud services. The binary is self-contained.
+
+---
+
+## Autonomous Enterprise Operations
+
+CSOS is a physics engine for operational decisions. Three concrete use cases where the 5 equations provide measured value:
+
+### Use Case 1: 24/7 Infrastructure Monitoring
+
+**Problem:** Alert fatigue. Thousands of metrics, most noise. Engineers trained to ignore alerts.
+
+**How CSOS solves it:**
+
+```bash
+# Feed metrics every 30 seconds (cron or agent loop)
+./csos --http 4200 &
+
+# Absorb CPU metric
+curl -X POST http://localhost:4200/api/command \
+  -d '{"action":"absorb","substrate":"prod_cpu","output":"78.2 usage no_deploy"}'
+
+# Absorb memory metric
+curl -X POST http://localhost:4200/api/command \
+  -d '{"action":"absorb","substrate":"prod_memory","output":"4.2GB of 8GB 52%"}'
+
+# Check what the physics decided
+curl -X POST http://localhost:4200/api/command \
+  -d '{"action":"muscle","ring":"eco_organism"}'
+# Returns: top substrates by motor_strength (what actually matters)
+```
+
+**Physics at work:**
+
+| Equation | What It Does in This Context |
+|----------|------------------------------|
+| **Gouterman** | Routes CPU signals to cpu_resonance atom, memory to memory_pressure atom. No cross-contamination. |
+| **Marcus** | Measures prediction error. "CPU was 45% yesterday, 78% today" → high error → non-resonated. |
+| **Mitchell** | Accumulates gradient. 3 consecutive high-CPU readings → gradient grows → evidence builds. |
+| **Calvin** | "CPU 78% + no_deploy" pattern becomes a calvin_atom: `pattern@78.2+/-2.1`. Next time this pattern appears, the system recognizes it instantly. This IS the "memory leak precursor" discovery — no human programmed it. |
+| **Boyer** | `speed > rw` → EXECUTE (alert). One reading won't trigger. Sustained anomaly will. Motor strength decays for services that return to normal — alert fatigue eliminated. |
+
+**What the system learns over time:**
+- Motor memory strengthens for services with repeating issues (spaced repetition)
+- Motor memory decays for services that self-heal (noise elimination)
+- Calvin atoms capture patterns: "disk 90% + Tuesday 2am = backup job, not alert"
+- Boyer threshold prevents premature alerting — evidence must be sufficient
+
+### Use Case 2: Autonomous DevOps (SWE-bench Pattern)
+
+**Problem:** LLM agents scan entire codebases wastefully. No memory of previous fixes.
+
+**How CSOS solves it:**
+
+```bash
+# Agent reads a file → immediately absorb
+csos-core command="cat src/auth/handler.go" substrate=src_auth
+# Response: {"motor_strength": 0.82, "decision": "EXECUTE"}
+# Motor says: "you understand src/auth well"
+
+csos-core command="cat tests/auth_test.go" substrate=tests_auth
+# Response: {"motor_strength": 0.02, "decision": "EXPLORE"}
+# Motor says: "you haven't read tests/ — go here first"
+```
+
+**Physics at work:**
+
+| Equation | What It Does in This Context |
+|----------|------------------------------|
+| **Motor memory** | Tracks per-file familiarity via spaced repetition. `src/auth` read 5 times → strength 0.82. `tests/` never read → strength 0.02. Agent knows WHERE to look without scanning everything. |
+| **Chain Calvin** | Records successful fix sequences: "read error_log → read handler.go → edit line 42 → tests pass". After 3 similar fixes, this chain becomes a calvin_atom — the agent has institutional knowledge of the fix pattern. |
+| **Boyer** | Gates code changes. Agent won't push a fix until `speed > rw` (enough evidence from reading source + tests + error logs). Prevents premature edits. |
+| **Forster** | Knowledge transfers across sessions. Yesterday's codebase understanding (gradient, motor memory, Calvin atoms) loads from `.csos/rings/` today. No cold start. |
+
+### Use Case 3: Multi-Tool Orchestration
+
+**Problem:** LLMs lose context in 10+ step workflows. Step 15 contradicts step 3.
+
+**How CSOS solves it:**
+
+```bash
+# 15-step incident response workflow
+for step in "check_k8s" "read_logs" "query_db" "check_dns" "ping_upstream" \
+            "read_config" "check_certs" "trace_request" "check_memory" "read_metrics" \
+            "compare_baseline" "check_deploys" "read_changelog" "verify_rollback" "confirm_fix"; do
+  curl -X POST http://localhost:4200/api/command \
+    -d "{\"action\":\"absorb\",\"substrate\":\"$step\",\"output\":\"step data for $step\"}"
+done
+
+# After 15 steps, check cumulative state
+curl -X POST http://localhost:4200/api/command \
+  -d '{"action":"see","ring":"eco_organism","detail":"cockpit"}'
+# Returns: gradient=accumulated, speed=evidence_rate, motor_entries=15
+# The membrane tracked ALL 15 steps. Nothing forgotten.
+```
+
+**Physics at work:**
+
+| Equation | What It Does in This Context |
+|----------|------------------------------|
+| **Mitchell** | Gradient accumulates across ALL 15 steps. Step 1's evidence is still there at step 15. No context window overflow — the gradient IS the compressed memory. |
+| **Motor memory** | Prioritizes which tools work. If `check_k8s` consistently yields `delta > 0` but `ping_upstream` yields `delta = 0`, motor strength reflects this. Next incident, the agent tries k8s first. |
+| **Boyer** | Won't trigger remediation action until 15 steps build sufficient evidence. `speed > rw` at step 12 → EXECUTE the fix. At step 5 → EXPLORE (keep gathering). No premature action. |
+| **Calvin** | Discovers tool sequences: "check_k8s → read_logs → check_memory → fix" becomes a chain_calvin atom. Next similar incident, the system suggests the proven sequence. |
+
+### Ops Spec File
+
+Create `specs/ops.csos` with infrastructure-specific atoms:
+
+```bash
+# Already created at specs/ops.csos
+cat specs/ops.csos
+```
+
+The ops spec defines 5 new atoms (cpu_resonance, memory_pressure, latency_gate, error_rate, deploy_detector) that extend the base 5 equations for infrastructure monitoring. Load them by editing `specs/eco.csos` or by creating a new ring via the `grow` action.
+
+### Monitoring Dashboard
+
+```bash
+# Start daemon
+./csos --http 4200
+
+# Open canvas: http://localhost:4200
+# The canvas shows:
+#   - Ring gauges (gradient, speed, decision per compartment)
+#   - Timeline (every absorb event with decision and delta)
+#   - Templates (select "Data Pipeline" for metric ingestion)
+#   - SSE live updates (no polling — EventSource connection)
+```
+
+### Watchdog Integration
+
+```bash
+# Health check every 15 minutes
+crontab -e
+*/15 * * * * /path/to/scripts/watchdog.sh
+
+# The watchdog:
+# 1. Runs diagnose via native binary
+# 2. If degraded → feeds stabilization signal
+# 3. Saves state to disk
+# 4. Logs to .csos/watchdog.log
+```
 
 ---
 

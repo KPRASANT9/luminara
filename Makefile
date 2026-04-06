@@ -10,6 +10,7 @@
 # make validate     Verify spec consistency + Law I enforcement
 # make hooks        Install git pre-commit hook
 # make clean        Remove build artifacts
+# make seed         Build + plant the seed (one command, everything grows)
 # make http         Build + start HTTP daemon on port 4200
 
 # ═══ LLVM detection ═══
@@ -34,7 +35,7 @@ SPEC     = specs/eco.csos
 SRC      = src/native/csos.c
 HEADERS  = lib/membrane.h lib/page.h lib/record.h lib/ring.h
 
-.PHONY: all nojit clean test bench validate hooks http
+.PHONY: all nojit clean test bench validate hooks http seed
 
 all: $(BIN)
 
@@ -86,6 +87,9 @@ test: $(BIN)
 
 bench: $(BIN)
 	@./$(BIN) --bench
+
+seed: $(BIN)
+	./$(BIN) --seed
 
 http: $(BIN)
 	./$(BIN) --http 4200

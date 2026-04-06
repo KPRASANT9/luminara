@@ -40,6 +40,12 @@ typedef struct {
     char       ident[64];
 } token_t;
 
+/* Max nesting depth for recursive descent.
+ * Prevents stack overflow on malicious formulas like "(((((...)))))" × 10000.
+ * Derived: deepest foundation expression (Marcus) has ~6 levels of nesting.
+ * 64 is generous — legitimate compute expressions never exceed 10 levels. */
+#define CSOS_PARSE_MAX_DEPTH 64
+
 typedef struct {
     const char *src;
     int         pos;
@@ -49,6 +55,8 @@ typedef struct {
     const char      (*param_keys)[32];
     int               param_count;
     double            signal;
+    /* Recursion depth guard */
+    int               depth;
 } parser_t;
 
 static void next_token(parser_t *p) {
@@ -116,17 +124,29 @@ static double lookup_var(parser_t *p, const char *name) {
 
 static double parse_expr(parser_t *p);
 
+/* Depth guard macro — returns 0.0 (safe fallback) on overflow */
+#define DEPTH_CHECK(p) do { \
+    if ((p)->depth >= CSOS_PARSE_MAX_DEPTH) return 0.0; \
+    (p)->depth++; \
+} while(0)
+#define DEPTH_RETURN(p) do { (p)->depth--; } while(0)
+
 static double parse_primary(parser_t *p) {
+    DEPTH_CHECK(p);
+    double result = 0.0;
+
     if (p->cur.type == TOK_NUM) {
-        double v = p->cur.num_val;
+        result = p->cur.num_val;
         next_token(p);
-        return v;
+        DEPTH_RETURN(p);
+        return result;
     }
     if (p->cur.type == TOK_LPAREN) {
         next_token(p); /* skip ( */
-        double v = parse_expr(p);
+        result = parse_expr(p);
         if (p->cur.type == TOK_RPAREN) next_token(p); /* skip ) */
-        return v;
+        DEPTH_RETURN(p);
+        return result;
     }
     if (p->cur.type == TOK_IDENT) {
         char name[64];
@@ -144,54 +164,68 @@ static double parse_primary(parser_t *p) {
                 double arg2 = parse_expr(p);
                 if (p->cur.type == TOK_RPAREN) next_token(p);
 
-                if (strcmp(name, "min") == 0) return arg1 < arg2 ? arg1 : arg2;
-                if (strcmp(name, "max") == 0) return arg1 > arg2 ? arg1 : arg2;
-                if (strcmp(name, "pow") == 0) return pow(arg1, arg2);
-                return arg1; /* unknown function */
+                if (strcmp(name, "min") == 0) result = arg1 < arg2 ? arg1 : arg2;
+                else if (strcmp(name, "max") == 0) result = arg1 > arg2 ? arg1 : arg2;
+                else if (strcmp(name, "pow") == 0) result = pow(arg1, arg2);
+                else result = arg1; /* unknown function */
+                DEPTH_RETURN(p);
+                return result;
             }
 
             if (p->cur.type == TOK_RPAREN) next_token(p);
 
             /* One-argument functions — clamped for safety like Python _safe_eval */
-            if (strcmp(name, "abs") == 0) return fabs(arg1);
-            if (strcmp(name, "exp") == 0) {
+            if (strcmp(name, "abs") == 0) result = fabs(arg1);
+            else if (strcmp(name, "exp") == 0) {
                 double clamped = arg1 > CSOS_EXP_CLAMP ? CSOS_EXP_CLAMP : (arg1 < -CSOS_EXP_CLAMP ? -CSOS_EXP_CLAMP : arg1);
-                return exp(clamped);
+                result = exp(clamped);
             }
-            if (strcmp(name, "sqrt") == 0) return sqrt(arg1 > 0 ? arg1 : 0);
-            if (strcmp(name, "log") == 0) return log(arg1 > 1e-10 ? arg1 : 1e-10);
-            return arg1; /* unknown function */
+            else if (strcmp(name, "sqrt") == 0) result = sqrt(arg1 > 0 ? arg1 : 0);
+            else if (strcmp(name, "log") == 0) result = log(arg1 > 1e-10 ? arg1 : 1e-10);
+            else result = arg1; /* unknown function */
+            DEPTH_RETURN(p);
+            return result;
         }
 
         /* Variable reference */
-        return lookup_var(p, name);
+        result = lookup_var(p, name);
+        DEPTH_RETURN(p);
+        return result;
     }
 
     /* Fallback */
     next_token(p);
+    DEPTH_RETURN(p);
     return 0;
 }
 
 static double parse_unary(parser_t *p) {
+    DEPTH_CHECK(p);
+    double result;
     if (p->cur.type == TOK_MINUS) {
         next_token(p);
-        return -parse_unary(p);
+        result = -parse_unary(p);
+    } else {
+        result = parse_primary(p);
     }
-    return parse_primary(p);
+    DEPTH_RETURN(p);
+    return result;
 }
 
 static double parse_power(parser_t *p) {
+    DEPTH_CHECK(p);
     double left = parse_unary(p);
     while (p->cur.type == TOK_STARSTAR) {
         next_token(p);
         double right = parse_unary(p);
-        /* Clamp exponent like Python version: min(base/divisor, 6) caps it */
         left = pow(left, right);
     }
+    DEPTH_RETURN(p);
     return left;
 }
 
 static double parse_term(parser_t *p) {
+    DEPTH_CHECK(p);
     double left = parse_power(p);
     while (p->cur.type == TOK_STAR || p->cur.type == TOK_SLASH) {
         tok_type_t op = p->cur.type;
@@ -200,10 +234,12 @@ static double parse_term(parser_t *p) {
         if (op == TOK_STAR) left *= right;
         else left /= (fabs(right) > 1e-10 ? right : 1e-10);
     }
+    DEPTH_RETURN(p);
     return left;
 }
 
 static double parse_expr(parser_t *p) {
+    DEPTH_CHECK(p);
     double left = parse_term(p);
     while (p->cur.type == TOK_PLUS || p->cur.type == TOK_MINUS) {
         tok_type_t op = p->cur.type;
@@ -212,6 +248,7 @@ static double parse_expr(parser_t *p) {
         if (op == TOK_PLUS) left += right;
         else left -= right;
     }
+    DEPTH_RETURN(p);
     return left;
 }
 

@@ -21,6 +21,12 @@
 #include <stdlib.h>
 #include <regex.h>
 
+/* Perf counters + autotune state (read by protocol.c perf action) */
+uint64_t _absorb_ns_total = 0;
+uint32_t _absorb_count = 0;
+int _autotune_calvin_freq = 5;
+int _autotune_compact_freq = 100;
+
 /* ═══ EQUATIONS ═══
  * NO hardcoded array. All atoms loaded from specs/eco.csos via csos_spec_parse().
  * Foundation atoms (Gouterman, Forster, Marcus, Mitchell, Boyer) and Calvin atoms

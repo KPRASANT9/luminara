@@ -3,661 +3,1002 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CSOS Canvas</title>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<title>CSOS</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <style>
 :root{--bg:#0a0e14;--bg2:#0f1419;--bg3:#1a1f26;--fg:#b3b1ad;--fg2:#6c7380;--fg3:#4a5060;--accent:#39bae6;--green:#7fd962;--red:#ff6b6b;--orange:#e6b450;--purple:#d2a6ff;--cyan:#95e6cb;--border:#1d2530}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--fg);font-family:'SF Mono','Fira Code','Menlo',monospace;overflow:hidden;height:100vh}
+body{background:var(--bg);color:var(--fg);font-family:'SF Mono','Fira Code','Menlo',monospace;overflow:hidden;height:100vh;display:flex;flex-direction:column}
 
-/* ═══ TOP BAR ═══ */
-#bar{height:40px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;z-index:100}
-.logo{font-size:13px;font-weight:800;color:var(--accent);letter-spacing:3px}
-.bar-sub{font-size:10px;color:var(--fg2)}
-.bar-r{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:10px;color:var(--fg2)}
+/* TOP BAR */
+#bar{height:34px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0}
+.logo{font-size:12px;font-weight:800;color:var(--accent);letter-spacing:3px}
 .dot{width:7px;height:7px;border-radius:50%;display:inline-block}
 .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}.dot.off{background:var(--red)}
-.presence{display:flex;gap:-4px}
-.avatar{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--bg);border:2px solid var(--bg);margin-left:-6px;cursor:default}
+.bar-lbl{font-size:8px;color:var(--fg3)}
+.bar-r{margin-left:auto;display:flex;align-items:center;gap:6px}
+.bar-btn{background:var(--bg3);border:1px solid var(--border);color:var(--fg2);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:8px;font-weight:600;transition:all .15s}
+.bar-btn:hover{border-color:var(--accent);color:var(--accent)}
+.bar-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(57,186,230,0.08)}
 
-/* ═══ LAYOUT: 3 columns ═══ */
-#main{display:flex;height:calc(100vh - 40px)}
+/* MAIN GRID */
+#main{flex:1;display:grid;grid-template-columns:170px 1fr 190px;overflow:hidden}
 
-/* ═══ LEFT: Datasources + Volumes ═══ */
-#left{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
-#left-scroll{flex:1;overflow-y:auto}
-.sec{padding:8px 12px;border-bottom:1px solid var(--border)}
-.sec h3{font-size:8px;text-transform:uppercase;color:var(--fg3);letter-spacing:1.5px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
-.sec h3 .cnt{background:var(--bg3);padding:0 5px;border-radius:3px;font-size:8px;color:var(--accent)}
-.sec h3 .add-btn{background:none;border:1px solid var(--border);color:var(--accent);padding:1px 6px;border-radius:3px;cursor:pointer;font-size:10px;font-family:inherit}
-.sec h3 .add-btn:hover{background:var(--accent);color:var(--bg)}
+/* LEFT SIDEBAR */
+#left{background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;font-size:9px}
+.sec{padding:6px 8px;border-bottom:1px solid var(--border)}
+.sec h3{font-size:7px;text-transform:uppercase;color:var(--fg3);letter-spacing:1.5px;margin-bottom:4px}
+.ring{padding:5px 6px;border-radius:3px;margin-bottom:3px;border:1px solid var(--border);cursor:pointer;transition:border-color .15s}
+.ring:hover{border-color:var(--accent)}
+.ring-hd{display:flex;justify-content:space-between;align-items:center}
+.ring-nm{font-weight:700;font-size:9px}
+.dec{font-size:6px;font-weight:800;padding:1px 4px;border-radius:2px}
+.dec.EXECUTE{background:rgba(127,217,98,0.1);color:var(--green)}
+.dec.EXPLORE{background:rgba(230,180,80,0.1);color:var(--orange)}
+.dec.ASK{background:rgba(255,107,107,0.1);color:var(--red)}
+.ring-m{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:3px;font-size:7px}
+.ring-m span{color:var(--fg3)}.ring-m b{color:var(--accent)}
+.bar-t{height:3px;background:var(--bg);border-radius:1px;margin-top:3px;overflow:hidden;grid-column:span 2}
+.bar-f{height:100%;border-radius:1px;transition:width .6s}
+.motor-i{display:flex;align-items:center;gap:3px;padding:2px 0;font-size:7px;cursor:pointer;transition:background .15s;border-radius:2px;padding:2px 3px}
+.motor-i:hover{background:var(--bg3)}
+.motor-h{color:var(--purple);font-weight:600;min-width:32px}
+.motor-b{flex:1;height:3px;background:var(--bg);border-radius:1px;overflow:hidden}
+.motor-f{height:100%;background:var(--green);border-radius:1px;transition:width .4s}
+.motor-s{color:var(--cyan);min-width:28px;text-align:right}
+.src-i{display:flex;justify-content:space-between;padding:2px 0;font-size:7px;cursor:pointer;border-radius:2px;padding:2px 3px;transition:background .15s}
+.src-i:hover{background:var(--bg3)}
+.src-nm{color:var(--purple);font-weight:600}
+.src-lvl{font-size:6px;padding:1px 3px;border-radius:2px;font-weight:700}
+.src-lvl.l0{color:var(--fg3)}.src-lvl.l1{color:var(--orange)}.src-lvl.l2{color:var(--cyan)}.src-lvl.l3{color:var(--green)}
+.cl-i{display:flex;justify-content:space-between;padding:2px 0;font-size:7px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:2px;padding:2px 3px;transition:background .15s}
+.cl-i:hover{background:var(--bg3)}
+.cl-nm{color:var(--cyan);font-weight:600}
 
-/* Template items */
-.tmpl{padding:6px 8px;border-radius:4px;margin-bottom:3px;border:1px solid var(--border);cursor:pointer;transition:all .12s}
-.tmpl:hover{border-color:var(--accent);background:rgba(57,186,230,0.04)}
-.tmpl .t-name{font-size:10px;font-weight:600;color:var(--accent)}
-.tmpl .t-desc{font-size:8px;color:var(--fg3);margin-top:1px}
-.tmpl .t-tags{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap}
-.tmpl .t-tag{font-size:7px;padding:1px 4px;border-radius:2px;background:var(--bg3);color:var(--fg2)}
-.tmpl .t-tag.conn{color:var(--cyan)}.tmpl .t-tag.rt{color:var(--purple)}
+/* CENTER PANEL */
+#center{display:flex;flex-direction:column;overflow:hidden;position:relative;background:var(--bg)}
 
-/* Datasource items */
-.ds{padding:5px 8px;border-radius:4px;margin-bottom:3px;border:1px solid var(--border);font-size:10px;cursor:pointer;transition:all .12s}
-.ds:hover{border-color:var(--accent)}
-.ds .ds-name{font-weight:600;color:var(--cyan)}
-.ds .ds-meta{font-size:8px;color:var(--fg3);margin-top:1px}
-.ds .ds-status{display:inline-block;width:5px;height:5px;border-radius:50%;margin-right:4px}
-.ds .ds-status.ok{background:var(--green)}.ds .ds-status.err{background:var(--red)}.ds .ds-status.cfg{background:var(--orange)}
+/* Center toolbar */
+#center-toolbar{display:flex;align-items:center;gap:6px;padding:4px 8px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.mode-tabs{display:flex;gap:2px;margin-right:8px}
+.mode-tab{background:var(--bg3);border:1px solid var(--border);color:var(--fg3);padding:3px 10px;cursor:pointer;font-family:inherit;font-size:8px;font-weight:600;transition:all .15s}
+.mode-tab:first-child{border-radius:3px 0 0 3px}
+.mode-tab:last-child{border-radius:0 3px 3px 0}
+.mode-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(57,186,230,0.1)}
+.toolbar-sep{width:1px;height:16px;background:var(--border);margin:0 4px}
+.exec-btns{display:flex;gap:4px}
+.exec-btn{background:var(--bg3);border:1px solid var(--border);color:var(--fg2);padding:3px 10px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:8px;font-weight:600;transition:all .15s}
+.exec-btn:hover{border-color:var(--accent);color:var(--accent)}
+.exec-btn.run{border-color:rgba(127,217,98,0.3);color:var(--green)}
+.exec-btn.run:hover{border-color:var(--green);background:rgba(127,217,98,0.08)}
+.exec-btn.stop{border-color:rgba(255,107,107,0.3);color:var(--red)}
+.exec-btn.stop:hover{border-color:var(--red);background:rgba(255,107,107,0.08)}
 
-/* Volume/artifact items */
-.vol{padding:4px 8px;border-radius:3px;font-size:9px;margin-bottom:2px;cursor:pointer;transition:background .1s;display:flex;align-items:center;gap:6px}
-.vol:hover{background:var(--bg3)}
-.vol .v-icon{color:var(--purple);font-size:11px}
-.vol .v-name{color:var(--fg)}
-.vol .v-badge{background:var(--bg3);padding:0 4px;border-radius:2px;font-size:7px;color:var(--accent);margin-left:auto}
+/* Center content area */
+#center-content{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
-/* Ring summary */
-.ring-mini{padding:4px 8px;border-radius:3px;font-size:9px;margin-bottom:2px;display:flex;justify-content:space-between;align-items:center}
-.ring-mini .rn{color:var(--fg)}
-.ring-mini .rd{font-size:7px;font-weight:800;padding:1px 4px;border-radius:2px}
-.ring-mini .rd.ex{background:rgba(127,217,98,0.1);color:var(--green)}
-.ring-mini .rd.xp{background:rgba(230,180,80,0.1);color:var(--orange)}
+/* Mermaid diagram area */
+#diagram-area{flex:0 1 auto;overflow:auto;padding:8px;display:none;min-height:120px;max-height:50vh;position:relative}
+#diagram-area svg{max-width:100%}
+#diagram-area .node{cursor:pointer}
+#diagram-area .node:hover rect,#diagram-area .node:hover polygon,#diagram-area .node:hover circle{stroke:var(--accent)!important;stroke-width:2px!important}
 
-/* ═══ CENTER: Workflow builder ═══ */
-#center{flex:1;display:flex;flex-direction:column;overflow:hidden}
+/* Code editor area */
+#code-area{flex:1;overflow:auto;padding:8px;display:none}
+.node-editor{background:var(--bg2);border:1px solid var(--border);border-radius:4px;margin-bottom:8px;overflow:hidden}
+.node-editor-hd{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--bg3);border-bottom:1px solid var(--border)}
+.node-editor-hd .name{color:var(--accent);font-weight:700;font-size:10px}
+.node-editor-hd .save-btn{background:var(--bg);border:1px solid var(--green);color:var(--green);padding:2px 8px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:7px;font-weight:600}
+.node-editor-hd .save-btn:hover{background:rgba(127,217,98,0.08)}
+.node-editor textarea{width:100%;background:var(--bg);color:var(--fg);border:none;padding:8px 10px;font-family:inherit;font-size:9px;line-height:1.6;resize:vertical;min-height:80px;outline:none}
 
-/* Workflow editor */
-#editor-area{display:flex;border-bottom:1px solid var(--border);height:140px;flex-shrink:0}
-#mermaid-editor{flex:1;background:var(--bg);border:none;color:var(--fg);padding:10px;font-family:inherit;font-size:11px;resize:none;outline:none;line-height:1.5}
-#editor-controls{width:100px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;padding:6px;gap:4px}
-.ctrl-btn{background:var(--bg3);border:1px solid var(--border);color:var(--fg);padding:5px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:600;transition:all .12s;text-align:center}
-.ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
-.ctrl-btn.run{border-color:var(--green);color:var(--green)}
-.ctrl-btn.run:hover{background:var(--green);color:var(--bg)}
-.ctrl-btn.stop{border-color:var(--red);color:var(--red)}
-.ctrl-btn.stop:hover{background:var(--red);color:var(--bg)}
+/* Exec dashboard */
+#exec-area{flex:1;overflow:auto;padding:8px;display:none}
+#exec-progress{height:4px;background:var(--bg3);border-radius:2px;margin-bottom:8px;overflow:hidden}
+#exec-progress-bar{height:100%;background:var(--green);border-radius:2px;transition:width .4s;width:0}
+.exec-node{background:var(--bg2);border:1px solid var(--border);border-radius:4px;margin-bottom:6px;overflow:hidden}
+.exec-node-hd{display:flex;justify-content:space-between;align-items:center;padding:5px 10px;cursor:pointer}
+.exec-node-hd .name{font-weight:700;font-size:9px;color:var(--fg)}
+.exec-node-status{font-size:7px;font-weight:700;padding:1px 6px;border-radius:2px}
+.exec-node-status.pending{color:var(--fg3);background:rgba(74,80,96,0.2)}
+.exec-node-status.running{color:var(--orange);background:rgba(230,180,80,0.1)}
+.exec-node-status.done{color:var(--green);background:rgba(127,217,98,0.1)}
+.exec-node-status.failed{color:var(--red);background:rgba(255,107,107,0.1)}
+.exec-node-body{display:none;border-top:1px solid var(--border);padding:6px 10px;font-size:8px}
+.exec-node-body.open{display:block}
+.exec-node-output{background:var(--bg);padding:6px;border-radius:3px;font-size:8px;color:var(--fg2);white-space:pre-wrap;word-break:break-all;max-height:150px;overflow-y:auto;margin-top:4px}
+.exec-node-timing{color:var(--cyan);font-size:7px;margin-top:3px}
+#exec-log{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 8px;font-size:8px;color:var(--fg2);max-height:200px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin-top:8px}
 
-/* Diagram render */
-#diagram-area{flex:1;overflow:auto;background:var(--bg);position:relative;min-height:200px}
-#diagram-area svg{max-width:100%!important}
-#diagram-render{padding:16px}
-#run-overlay{position:absolute;top:0;left:0;right:0;pointer-events:none;z-index:5}
+/* Version history */
+#version-area{flex-shrink:0;border-top:1px solid var(--border);background:var(--bg2);max-height:100px;overflow:hidden;transition:max-height .2s}
+#version-area.collapsed{max-height:22px}
+#version-hd{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;cursor:pointer;font-size:8px;color:var(--fg3);font-weight:600}
+#version-hd:hover{color:var(--fg2)}
+#version-list{overflow-y:auto;max-height:74px;padding:0 8px 4px}
+.version-item{padding:2px 6px;font-size:7px;cursor:pointer;border-radius:2px;display:flex;justify-content:space-between;color:var(--fg3);transition:background .1s}
+.version-item:hover{background:var(--bg3);color:var(--fg)}
+.version-item.active{color:var(--accent)}
 
-/* Runtime output */
-#runtime{border-top:1px solid var(--border);max-height:200px;overflow-y:auto;background:var(--bg2);display:none;flex-shrink:0}
-#runtime.active{display:block}
-#runtime-bar{padding:5px 12px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:8px;text-transform:uppercase;color:var(--fg3);letter-spacing:1px;display:flex;align-items:center;justify-content:space-between}
-#runtime-bar .running{color:var(--green);animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-#runtime-log{padding:6px 12px;font-size:10px}
-.rt-step{padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.02);display:flex;gap:8px;align-items:baseline}
-.rt-step .rt-node{color:var(--accent);font-weight:700;min-width:40px}
-.rt-step .rt-op{color:var(--fg3);font-size:8px;min-width:50px}
-.rt-step .rt-out{color:var(--fg);flex:1;word-break:break-all}
-.rt-step .rt-dec{font-weight:700;font-size:8px}
-.rt-step .rt-dec.EXECUTE{color:var(--green)}.rt-step .rt-dec.EXPLORE{color:var(--orange)}
-.rt-step.error .rt-out{color:var(--red)}
-.rt-step.running{opacity:.6}
-.rt-step.success .rt-node::before{content:'[OK] ';color:var(--green);font-size:7px}
-.rt-step.fail .rt-node::before{content:'[FAIL] ';color:var(--red);font-size:7px}
-.rt-step .rt-meta{font-size:7px;color:var(--fg3);margin-left:4px}
-.rt-step .rt-copy{background:none;border:1px solid var(--border);color:var(--fg3);padding:0 4px;border-radius:2px;cursor:pointer;font-size:7px;font-family:inherit;margin-left:4px}
-.rt-step .rt-copy:hover{color:var(--accent);border-color:var(--accent)}
-.rt-inline{margin-top:3px;padding:4px 6px;background:var(--bg);border-radius:3px;font-size:9px;max-height:80px;overflow-y:auto;cursor:pointer;border:1px solid var(--border);word-break:break-all}
-.rt-inline:hover{border-color:var(--accent)}
-#wf-summary{padding:4px 12px;background:var(--bg3);border-top:1px solid var(--border);font-size:9px;display:none;align-items:center;gap:8px}
-#wf-summary.show{display:flex}
-.sum-badge{padding:1px 6px;border-radius:3px;font-size:8px;font-weight:700}
-.sum-badge.pass{background:rgba(127,217,98,0.12);color:var(--green)}
-.sum-badge.fail{background:rgba(255,107,107,0.12);color:var(--red)}
+/* OpenCode iframe section */
+#oc-section{flex:1;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--border);min-height:0}
+#oc-toggle{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;cursor:pointer;font-size:8px;color:var(--fg3);font-weight:600;background:var(--bg2);flex-shrink:0}
+#oc-toggle:hover{color:var(--fg2)}
+#oc-body{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#oc-body.collapsed{display:none}
+#oc-frame{flex:1;border:none;background:var(--bg)}
+#oc-splash{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:10;gap:12px}
+#oc-splash.hidden{display:none}
+#oc-splash h1{color:var(--accent);font-size:20px;font-weight:800;letter-spacing:2px}
+#oc-splash .sub{color:var(--fg2);font-size:11px;max-width:460px;text-align:center;line-height:1.7}
+#oc-splash code{background:var(--bg3);padding:3px 8px;border-radius:4px;font-size:10px;color:var(--cyan)}
+#oc-splash .connect-btn{background:var(--accent);color:var(--bg);border:none;padding:10px 28px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;margin-top:8px;transition:all .15s}
+#oc-splash .connect-btn:hover{transform:scale(1.03);box-shadow:0 0 16px rgba(57,186,230,0.3)}
+#oc-splash .caps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;max-width:440px}
+.cap{background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:8px 10px;font-size:9px}
+.cap b{color:var(--accent);display:block;margin-bottom:2px;font-size:8px;text-transform:uppercase;letter-spacing:1px}
+.cap span{color:var(--fg2);font-size:8px;line-height:1.4}
 
-/* ═══ RIGHT: Timeline + Collaboration ═══ */
-#right{width:240px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;font-size:11px}
+/* RIGHT SIDEBAR */
+#right{background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;font-size:9px}
+.kv{display:flex;justify-content:space-between;padding:2px 0;font-size:8px;border-bottom:1px solid rgba(255,255,255,0.02);cursor:pointer;border-radius:2px;padding:2px 4px;transition:background .15s}
+.kv:hover{background:var(--bg3)}
+.kv .k{color:var(--fg3)}.kv .v{color:var(--accent);font-weight:600}
+.ev{padding:3px 0;font-size:7px;border-bottom:1px solid rgba(255,255,255,0.03);display:flex;gap:4px;align-items:center;cursor:pointer;border-radius:2px;padding:3px 4px;transition:background .15s}
+.ev:hover{background:var(--bg3)}
+.ev .t{color:var(--fg3);min-width:38px}
+.ev .s{color:var(--purple);font-weight:600;max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Collab */
-#collab-area{padding:8px 12px;border-bottom:1px solid var(--border)}
-#collab-area h3{font-size:8px;text-transform:uppercase;color:var(--fg3);letter-spacing:1.5px;margin-bottom:5px}
-#collab-list{display:flex;flex-wrap:wrap;gap:4px}
-.collab-user{display:flex;align-items:center;gap:4px;padding:2px 6px;border-radius:3px;background:var(--bg3);font-size:9px}
-.collab-dot{width:6px;height:6px;border-radius:50%}
+/* Copy feedback tooltip */
+.copy-toast{position:fixed;pointer-events:none;background:var(--accent);color:var(--bg);font-size:8px;font-weight:700;padding:3px 8px;border-radius:3px;z-index:9999;opacity:0;transition:opacity .15s;font-family:inherit}
+.copy-toast.show{opacity:1}
 
-/* Scan */
-#scan-area{padding:8px 12px;border-bottom:1px solid var(--border)}
-#scan-area h3{font-size:8px;text-transform:uppercase;color:var(--fg3);letter-spacing:1.5px;margin-bottom:5px}
-#scan-target{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--fg);padding:4px 8px;border-radius:4px;font-family:inherit;font-size:10px;outline:none;margin-bottom:4px}
-.scan-row{display:flex;gap:3px}
-.scan-btn{flex:1;background:var(--bg3);border:1px solid var(--border);color:var(--fg2);padding:4px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:8px;font-weight:600;transition:all .12s;text-align:center}
-.scan-btn:hover{border-color:var(--accent);color:var(--accent)}
+/* Node edit popover */
+#node-popover{position:absolute;z-index:100;background:var(--bg2);border:1px solid var(--accent);border-radius:5px;padding:10px;min-width:240px;display:none;box-shadow:0 4px 20px rgba(0,0,0,0.5)}
+#node-popover h4{font-size:9px;color:var(--accent);margin-bottom:6px;font-weight:700}
+.pop-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.pop-row label{font-size:8px;color:var(--fg3);min-width:50px;text-align:right}
+.pop-row input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--fg);padding:3px 6px;border-radius:3px;font-family:inherit;font-size:8px;outline:none}
+.pop-row input:focus{border-color:var(--accent)}
+.pop-btns{display:flex;gap:4px;margin-top:6px;justify-content:flex-end}
+.pop-btns button{padding:3px 10px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:8px;font-weight:600;border:1px solid var(--border);background:var(--bg3);color:var(--fg2)}
+.pop-btns button.save{border-color:var(--green);color:var(--green)}
+.pop-btns button.save:hover{background:rgba(127,217,98,0.08)}
+.pop-btns button.del{border-color:var(--red);color:var(--red)}
+.pop-btns button.del:hover{background:rgba(255,107,107,0.08)}
+.pop-btns button.cancel:hover{border-color:var(--fg2)}
 
-/* Timeline */
-.r-sec{padding:6px 10px;border-bottom:1px solid var(--border)}
-.r-sec h3{font-size:8px;text-transform:uppercase;color:var(--fg3);letter-spacing:1.5px;margin-bottom:4px;display:flex;align-items:center;gap:6px}
-.r-sec h3 .cnt{background:var(--bg3);padding:0 5px;border-radius:3px;font-size:8px;color:var(--accent)}
-#timeline{flex:1;overflow-y:auto;padding:4px 10px}
-.tl{padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.02);font-size:9px;display:flex;gap:4px;align-items:baseline}
-.tl .tm{color:var(--fg3);min-width:42px;font-size:8px}
-.tl .sub{color:var(--purple);font-weight:600;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tl .dec-t{font-weight:800;font-size:8px}
-.tl .dec-t.EXECUTE{color:var(--green)}.tl .dec-t.EXPLORE{color:var(--orange)}
-.tl .delta{color:var(--cyan);font-size:8px}
-
-/* Command */
-#cmd-area{padding:8px 10px;border-top:1px solid var(--border)}
-#cmd-wrap{display:flex;border:1px solid var(--border);border-radius:5px;background:var(--bg3);overflow:hidden}
-#cmd-wrap .pr{color:var(--accent);padding:5px 6px 5px 8px;font-size:10px}
-#cmd{flex:1;background:transparent;border:none;color:var(--fg);padding:5px 8px 5px 0;font-family:inherit;font-size:10px;outline:none}
-#cmd-send{background:var(--accent);color:var(--bg);border:none;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:9px;font-weight:700}
-
-/* Modal (add datasource) */
-#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center}
-#modal-overlay.show{display:flex}
-#modal{background:var(--bg2);border:1px solid var(--border);border-radius:10px;width:380px;max-height:80vh;overflow-y:auto}
-#modal h2{padding:12px 16px;font-size:12px;color:var(--accent);border-bottom:1px solid var(--border)}
-#modal .form{padding:12px 16px;display:flex;flex-direction:column;gap:8px}
-#modal label{font-size:9px;color:var(--fg2);text-transform:uppercase;letter-spacing:.5px}
-#modal input,#modal select{background:var(--bg3);border:1px solid var(--border);color:var(--fg);padding:6px 10px;border-radius:4px;font-family:inherit;font-size:10px;outline:none}
-#modal input:focus{border-color:var(--accent)}
-#modal .form-actions{display:flex;gap:6px;justify-content:flex-end;padding-top:6px}
-#modal .form-actions button{padding:6px 14px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:600;border:1px solid var(--border)}
-.btn-cancel{background:var(--bg3);color:var(--fg)}
-.btn-save{background:var(--accent);color:var(--bg);border-color:var(--accent)!important}
-
-@media(max-width:800px){#left{width:170px}#right{width:200px}}
-@media(max-width:600px){#left{display:none}#right{display:none}}
+@media(max-width:700px){#main{grid-template-columns:1fr}#left,#right{display:none}}
 </style>
 </head>
 <body>
 
+<!-- TOP BAR -->
 <div id="bar">
   <span class="logo">CSOS</span>
-  <span class="bar-sub">workflow canvas</span>
+  <span class="dot" id="dot"></span>
+  <span class="bar-lbl" id="status">connecting</span>
   <span class="bar-r">
-    <span class="dot" id="dot"></span><span id="ss">connecting</span>
-    <span style="color:var(--border)">|</span>
-    <span id="info"></span>
-    <span style="color:var(--border)">|</span>
-    <div class="presence" id="presence"></div>
+    <span class="bar-lbl" id="info"></span>
+    <button class="bar-btn" onclick="sendQ({action:'diagnose'})">diagnose</button>
+    <button class="bar-btn" onclick="sendQ({action:'see',ring:'eco_organism',detail:'cockpit'})">cockpit</button>
+    <button class="bar-btn" onclick="sendQ({action:'muscle',ring:'eco_organism'})">muscle</button>
+    <button class="bar-btn" onclick="sendQ({action:'compact'})">compact</button>
   </span>
 </div>
 
 <div id="main">
-  <!-- LEFT: Datasources + Volumes -->
-  <div id="left"><div id="left-scroll">
-    <div class="sec">
-      <h3>Templates <span class="cnt" id="tmpl-cnt">0</span></h3>
-      <div id="tmpl-list"></div>
-    </div>
-    <div class="sec">
-      <h3>Datasources <span class="cnt" id="ds-cnt">0</span><button class="add-btn" onclick="showAddDS()">+</button></h3>
-      <div id="ds-list"></div>
-    </div>
-    <div class="sec">
-      <h3>Volumes <span class="cnt" id="vol-cnt">0</span><button class="add-btn" onclick="autoload()">scan</button></h3>
-      <div id="vol-list"></div>
-    </div>
-    <div class="sec">
-      <h3>Rings <span class="cnt" id="ring-cnt">0</span></h3>
-      <div id="ring-list"></div>
-    </div>
-  </div></div>
+  <!-- LEFT -->
+  <div id="left">
+    <div class="sec"><h3>Rings</h3><div id="rings"></div></div>
+    <div class="sec"><h3>Motor Memory</h3><div id="motor"></div></div>
+    <div class="sec"><h3>Sources</h3><div id="sources">loading...</div></div>
+    <div class="sec"><h3>Clusters</h3><div id="clusters">none</div></div>
+  </div>
 
-  <!-- CENTER: Workflow Builder + Runtime -->
+  <!-- CENTER -->
   <div id="center">
-    <div id="editor-area">
-      <textarea id="mermaid-editor" spellcheck="false">flowchart TD
-  A["Ingest Data"] --> B["Process Signals"]
-  B --> C["Compute Trends"]
-  C --> D["Decide Action"]
-  D -->|EXECUTE| E["Deliver Output"]
-  D -->|EXPLORE| F["Observe More"]
-  F --> A</textarea>
-      <div id="editor-controls">
-        <button class="ctrl-btn" onclick="renderDiagram()">Render</button>
-        <button class="ctrl-btn run" id="run-btn" onclick="runWorkflow()">Run</button>
-        <button class="ctrl-btn stop" onclick="stopWorkflow()">Stop</button>
-        <div style="flex:1"></div>
-        <button class="ctrl-btn" onclick="downloadAs('json')" title="Download JSON">JSON</button>
-        <button class="ctrl-btn" onclick="downloadAs('csv')" title="Download CSV">CSV</button>
-        <button class="ctrl-btn" onclick="downloadAs('summary')" title="Download summary">TXT</button>
-        <button class="ctrl-btn" onclick="clearRuntime()">Clear</button>
+    <!-- Toolbar -->
+    <div id="center-toolbar">
+      <div class="mode-tabs">
+        <button class="mode-tab active" data-mode="visual" onclick="setMode('visual')">Visual</button>
+        <button class="mode-tab" data-mode="code" onclick="setMode('code')">Code</button>
+        <button class="mode-tab" data-mode="exec" onclick="setMode('exec')">Exec</button>
+      </div>
+      <div class="toolbar-sep"></div>
+      <button class="exec-btn" onclick="copySpec()">Copy Spec</button>
+      <button class="exec-btn" onclick="copyMermaid()">Copy Mermaid</button>
+      <div class="toolbar-sep"></div>
+      <div class="exec-btns">
+        <button class="exec-btn run" onclick="execRunAll()">Run All</button>
+        <button class="exec-btn" onclick="execStep()">Step</button>
+        <button class="exec-btn" onclick="execPause()">Pause</button>
+        <button class="exec-btn stop" onclick="execStop()">Stop</button>
       </div>
     </div>
-    <div id="diagram-area"><div id="diagram-render"></div><div id="run-overlay"></div></div>
-    <div id="runtime"><div id="runtime-bar"><span>Runtime Output</span><span id="rt-status"></span></div><div id="runtime-log"></div><div id="wf-summary"></div></div>
+
+    <div id="center-content">
+      <!-- Visual mode: Mermaid diagram -->
+      <div id="diagram-area"></div>
+
+      <!-- Code mode: per-node editors -->
+      <div id="code-area"></div>
+
+      <!-- Exec mode: execution dashboard -->
+      <div id="exec-area">
+        <div id="exec-progress"><div id="exec-progress-bar"></div></div>
+        <div id="exec-nodes"></div>
+        <div id="exec-log"></div>
+      </div>
+
+      <!-- Version history -->
+      <div id="version-area" class="collapsed">
+        <div id="version-hd" onclick="toggleVersions()">
+          <span>Spec Versions</span><span id="version-arrow">+</span>
+        </div>
+        <div id="version-list"></div>
+      </div>
+
+      <!-- OpenCode iframe -->
+      <div id="oc-section">
+        <div id="oc-toggle" onclick="toggleOC()">
+          <span>OpenCode Agent</span><span id="oc-arrow">-</span>
+        </div>
+        <div id="oc-body">
+          <div id="oc-splash">
+            <h1>CSOS</h1>
+            <div class="sub">
+              Everything happens through the agent.<br>
+              Workflows, sources, clusters, execution &mdash; all conversational.
+            </div>
+            <div class="sub" style="margin-top:4px">
+              <code>opencode web --port 4280 --cors "http://localhost:4200"</code>
+            </div>
+            <button class="connect-btn" onclick="connectOC()">Connect to OpenCode</button>
+            <div class="caps">
+              <div class="cap"><b>Synthesize</b><span>"Build an ETL pipeline from postgres to s3 with validation"</span></div>
+              <div class="cap"><b>Sources</b><span>"Register github_api with API key auth"</span></div>
+              <div class="cap"><b>Clusters</b><span>"Deploy this workflow as etl_prod"</span></div>
+              <div class="cap"><b>Execute</b><span>"Run the pipeline and show me results"</span></div>
+              <div class="cap"><b>Edit</b><span>"Add encryption before the s3 upload step"</span></div>
+              <div class="cap"><b>Monitor</b><span>"Check cluster etl_prod status"</span></div>
+              <div class="cap"><b>Preview</b><span>"Show me the workflow nodes with their runtimes"</span></div>
+              <div class="cap"><b>Validate</b><span>"Validate postgres_prod source and show capabilities"</span></div>
+            </div>
+          </div>
+          <iframe id="oc-frame" style="display:none"></iframe>
+        </div>
+      </div>
+    </div>
+
+    <!-- Node edit popover -->
+    <div id="node-popover">
+      <h4 id="pop-title">Edit Node</h4>
+      <div class="pop-row"><label>Label</label><input id="pop-label" type="text"></div>
+      <div class="pop-row"><label>Unit</label><input id="pop-unit" type="text" placeholder="processing_unit"></div>
+      <div class="pop-row"><label>Libs</label><input id="pop-libs" type="text" placeholder="comma-separated"></div>
+      <div class="pop-row"><label>Runtime</label><input id="pop-runtime" type="text" placeholder="native/wasm/python"></div>
+      <div class="pop-btns">
+        <button class="del" onclick="popDeleteNode()">Delete</button>
+        <button class="cancel" onclick="closePopover()">Cancel</button>
+        <button class="save" onclick="popSaveNode()">Save</button>
+      </div>
+    </div>
   </div>
 
-  <!-- RIGHT: Collaboration + Timeline -->
+  <!-- RIGHT -->
   <div id="right">
-    <div id="collab-area"><h3>Collaborators</h3><div id="collab-list"></div></div>
-    <div id="scan-area">
-      <h3>Scan</h3>
-      <input id="scan-target" placeholder="ring or substrate..." />
-      <div class="scan-row">
-        <button class="scan-btn" onclick="scan('see')">See</button>
-        <button class="scan-btn" onclick="scan('lint')">Lint</button>
-        <button class="scan-btn" onclick="scan('diagnose')">Diag</button>
-        <button class="scan-btn" onclick="scan('observe')">Observe</button>
-      </div>
-    </div>
-    <div class="r-sec"><h3>Timeline <span class="cnt" id="tl-cnt">0</span></h3></div>
-    <div id="timeline"></div>
-    <div id="cmd-area">
-      <div id="cmd-wrap">
-        <span class="pr">&gt;</span>
-        <input id="cmd" placeholder="JSON command..." />
-        <button id="cmd-send">Send</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Add Datasource Modal -->
-<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
-  <div id="modal">
-    <h2>Add Datasource</h2>
-    <div class="form">
-      <label>Name</label><input id="ds-name" placeholder="e.g. databricks_prod" />
-      <label>Type</label>
-      <select id="ds-type"><option value="api">API</option><option value="database">Database</option><option value="url">URL</option><option value="file">File</option></select>
-      <label>URL / Endpoint</label><input id="ds-url" placeholder="https://..." />
-      <label>Auth Method</label>
-      <select id="ds-auth-method"><option value="none">None</option><option value="bearer">Bearer Token</option><option value="basic">Basic Auth</option><option value="api_key">API Key</option></select>
-      <label>Token / Key</label><input id="ds-token" type="password" placeholder="secret" />
-      <div class="form-actions">
-        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-        <button class="btn-save" onclick="addDS()">Add</button>
-      </div>
-    </div>
+    <div class="sec"><h3>Cockpit</h3><div id="cockpit"></div></div>
+    <div class="sec"><h3>Events</h3><div id="events"></div></div>
   </div>
 </div>
 
 <script>
-mermaid.initialize({startOnLoad:false,theme:'dark',
-  themeVariables:{darkMode:true,background:'#0a0e14',primaryColor:'#1a1f26',primaryTextColor:'#b3b1ad',lineColor:'#39bae6',secondaryColor:'#0f3460'},
-  flowchart:{curve:'basis',padding:10},securityLevel:'loose'});
-
 const $=id=>document.getElementById(id);
-let S={rings:{},calvins:[],specs:[],observed:[],topology:{}};
-let tlCount=0, mc=0;
-let clientId='c_'+Math.random().toString(36).slice(2,8);
-let clientName='';
+let S={rings:{}};
+let ocPort=4280;
+let ocCollapsed=false;
+let versionsCollapsed=true;
 
-// ═══ SSE: daemon stream ═══
+// Global workflow state
+let WF={name:'',spec:'',mermaid:'',nodes:[],versions:[],currentStep:-1,mode:'visual',running:false,execState:{}};
+let mermaidReady=false;
+let mermaidCounter=0;
+let editingNodeId=null;
+
+// Initialize mermaid
+mermaid.initialize({startOnLoad:false,theme:'dark',themeVariables:{primaryColor:'#1a1f26',primaryBorderColor:'#39bae6',primaryTextColor:'#b3b1ad',lineColor:'#4a5060',secondaryColor:'#0f1419',tertiaryColor:'#0a0e14',background:'#0a0e14',mainBkg:'#1a1f26',nodeBorder:'#39bae6',clusterBkg:'#0f1419',titleColor:'#39bae6',edgeLabelBackground:'#0f1419'},flowchart:{curve:'basis',htmlLabels:true}});
+mermaidReady=true;
+
+// ========= PHASE 1: Copy/Clipboard =========
+
+function copyText(text, el){
+  navigator.clipboard.writeText(text).then(()=>{
+    showCopyToast(el||null, 'Copied!');
+  }).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';
+    document.body.appendChild(ta);ta.select();document.execCommand('copy');
+    document.body.removeChild(ta);
+    showCopyToast(el||null,'Copied!');
+  });
+}
+
+function showCopyToast(el, msg){
+  const toast=document.createElement('div');
+  toast.className='copy-toast';
+  toast.textContent=msg;
+  document.body.appendChild(toast);
+  let x=window.innerWidth/2, y=window.innerHeight/2;
+  if(el){
+    const r=el.getBoundingClientRect();
+    x=r.left+r.width/2;
+    y=r.top-4;
+  }
+  toast.style.left=(x-toast.offsetWidth/2)+'px';
+  toast.style.top=(y-toast.offsetHeight-2)+'px';
+  requestAnimationFrame(()=>toast.classList.add('show'));
+  setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>toast.remove(),200)},800);
+}
+
+function copySpec(){
+  if(!WF.spec){showCopyToast(null,'No spec');return}
+  const btn=document.querySelector('#center-toolbar .exec-btn');
+  copyText(WF.spec, btn);
+}
+
+function copyMermaid(){
+  if(!WF.mermaid){showCopyToast(null,'No mermaid');return}
+  const btns=document.querySelectorAll('#center-toolbar .exec-btn');
+  copyText(WF.mermaid, btns[1]||null);
+}
+
+function addCopyHandler(el, getText){
+  el.addEventListener('click', function(e){
+    e.stopPropagation();
+    const text=typeof getText==='function'?getText():getText;
+    copyText(text, el);
+  });
+}
+
+// ========= PHASE 2: Mermaid Diagram Editor =========
+
+function parseMermaidNodes(mmd){
+  const nodes=[];
+  const lines=mmd.split('\n');
+  for(const line of lines){
+    const m=line.match(/^\s*(\w+)\[([^\]]+)\]/);
+    if(m){
+      nodes.push({id:m[1],label:m[2],processing_unit:'',libs:'',runtime:'native',command:''});
+    }
+    const m2=line.match(/^\s*(\w+)\(([^)]+)\)/);
+    if(m2 && !nodes.find(n=>n.id===m2[1])){
+      nodes.push({id:m2[1],label:m2[2],processing_unit:'',libs:'',runtime:'native',command:''});
+    }
+  }
+  return nodes;
+}
+
+function buildMermaidFromNodes(nodes, edges){
+  let mmd='graph TD\n';
+  for(const n of nodes){
+    mmd+=`  ${n.id}[${n.label}]\n`;
+  }
+  if(edges && edges.length>0){
+    for(const e of edges){
+      mmd+=`  ${e}\n`;
+    }
+  } else {
+    for(let i=0;i<nodes.length-1;i++){
+      mmd+=`  ${nodes[i].id} --> ${nodes[i+1].id}\n`;
+    }
+  }
+  return mmd;
+}
+
+function extractEdges(mmd){
+  const edges=[];
+  const lines=mmd.split('\n');
+  for(const line of lines){
+    const m=line.match(/^\s*(\w+)\s*-->\s*(\w+)/);
+    if(m) edges.push(`${m[1]} --> ${m[2]}`);
+    const m2=line.match(/^\s*(\w+)\s*--->\s*(\w+)/);
+    if(m2) edges.push(`${m2[1]} ---> ${m2[2]}`);
+    const m3=line.match(/^\s*(\w+)\s*--\s*([^-]+)\s*-->\s*(\w+)/);
+    if(m3) edges.push(`${m3[1]} -- ${m3[2]}--> ${m3[3]}`);
+  }
+  return edges;
+}
+
+async function renderDiagram(){
+  if(!mermaidReady||!WF.mermaid) return;
+  const area=$('diagram-area');
+  const id='mermaid-'+( ++mermaidCounter);
+  try{
+    const {svg}=await mermaid.render(id, WF.mermaid);
+    area.innerHTML=svg;
+    area.style.display='block';
+    // Add click handlers on nodes
+    const svgEl=area.querySelector('svg');
+    if(svgEl){
+      svgEl.querySelectorAll('.node').forEach(nodeEl=>{
+        nodeEl.style.cursor='pointer';
+        nodeEl.addEventListener('click', function(e){
+          e.stopPropagation();
+          const nodeId=this.id||'';
+          const cleanId=nodeId.replace(/^flowchart-/,'').replace(/-\d+$/,'');
+          const wfNode=WF.nodes.find(n=>n.id===cleanId);
+          if(wfNode){
+            openPopover(wfNode, this);
+          } else {
+            const textEl=this.querySelector('.nodeLabel')||this.querySelector('text');
+            const label=textEl?textEl.textContent.trim():'';
+            copyText(label+' ('+cleanId+')', this);
+          }
+        });
+      });
+    }
+    colorExecNodes();
+  } catch(err){
+    area.innerHTML='<div style="color:var(--red);padding:10px;font-size:10px">Mermaid render error: '+err.message+'</div>';
+    area.style.display='block';
+  }
+}
+
+function openPopover(node, el){
+  editingNodeId=node.id;
+  $('pop-title').textContent='Edit: '+node.id;
+  $('pop-label').value=node.label||'';
+  $('pop-unit').value=node.processing_unit||'';
+  $('pop-libs').value=node.libs||'';
+  $('pop-runtime').value=node.runtime||'native';
+  const pop=$('node-popover');
+  pop.style.display='block';
+  const rect=el.getBoundingClientRect();
+  const centerRect=$('center').getBoundingClientRect();
+  let left=rect.left-centerRect.left+rect.width/2-120;
+  let top=rect.bottom-centerRect.top+4;
+  if(left<4)left=4;
+  if(left+240>centerRect.width)left=centerRect.width-244;
+  if(top+180>centerRect.height)top=rect.top-centerRect.top-184;
+  pop.style.left=left+'px';
+  pop.style.top=top+'px';
+}
+
+function closePopover(){
+  $('node-popover').style.display='none';
+  editingNodeId=null;
+}
+
+function popSaveNode(){
+  if(!editingNodeId) return;
+  const node=WF.nodes.find(n=>n.id===editingNodeId);
+  if(!node){closePopover();return}
+  node.label=$('pop-label').value||node.id;
+  node.processing_unit=$('pop-unit').value;
+  node.libs=$('pop-libs').value;
+  node.runtime=$('pop-runtime').value;
+  const edges=extractEdges(WF.mermaid);
+  WF.mermaid=buildMermaidFromNodes(WF.nodes, edges);
+  pushVersion();
+  postWorkflowDraft();
+  renderCurrentMode();
+  closePopover();
+}
+
+function popDeleteNode(){
+  if(!editingNodeId) return;
+  const idx=WF.nodes.findIndex(n=>n.id===editingNodeId);
+  if(idx===-1){closePopover();return}
+  WF.nodes.splice(idx,1);
+  let edges=extractEdges(WF.mermaid);
+  edges=edges.filter(e=>!e.includes(editingNodeId));
+  WF.mermaid=buildMermaidFromNodes(WF.nodes, edges);
+  pushVersion();
+  postWorkflowDraft();
+  renderCurrentMode();
+  closePopover();
+}
+
+function addNewNode(){
+  const id='node_'+(WF.nodes.length+1);
+  const label='New Node '+(WF.nodes.length+1);
+  WF.nodes.push({id,label,processing_unit:'',libs:'',runtime:'native',command:''});
+  const edges=extractEdges(WF.mermaid);
+  if(WF.nodes.length>1){
+    edges.push(WF.nodes[WF.nodes.length-2].id+' --> '+id);
+  }
+  WF.mermaid=buildMermaidFromNodes(WF.nodes, edges);
+  pushVersion();
+  postWorkflowDraft();
+  renderCurrentMode();
+}
+
+function pushVersion(){
+  const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  WF.versions.push({ts,mermaid:WF.mermaid,nodes:JSON.parse(JSON.stringify(WF.nodes)),spec:WF.spec});
+  renderVersionList();
+}
+
+function restoreVersion(idx){
+  const v=WF.versions[idx];
+  if(!v)return;
+  WF.mermaid=v.mermaid;
+  WF.nodes=JSON.parse(JSON.stringify(v.nodes));
+  WF.spec=v.spec||WF.spec;
+  renderCurrentMode();
+  renderVersionList();
+}
+
+function renderVersionList(){
+  const list=$('version-list');
+  list.innerHTML='';
+  WF.versions.forEach((v,i)=>{
+    const div=document.createElement('div');
+    div.className='version-item'+(i===WF.versions.length-1?' active':'');
+    div.innerHTML='<span>v'+(i+1)+' - '+v.ts+'</span><span>'+v.nodes.length+' nodes</span>';
+    div.onclick=()=>restoreVersion(i);
+    list.appendChild(div);
+  });
+  list.scrollTop=list.scrollHeight;
+}
+
+function postWorkflowDraft(){
+  cmd({action:'workflow',sub:'draft',spec:WF.mermaid,name:WF.name||'unnamed'}).catch(()=>{});
+}
+
+// ========= PHASE 3: Execution Controls =========
+
+function execRunAll(){
+  if(!WF.mermaid&&!WF.spec){showCopyToast(null,'No workflow');return}
+  WF.running=true;
+  WF.currentStep=-1;
+  WF.nodes.forEach(n=>{
+    WF.execState[n.id]={status:'pending',output:'',stderr:'',time:0,startTime:0};
+  });
+  if(WF.nodes.length>0){
+    WF.execState[WF.nodes[0].id].status='running';
+    WF.execState[WF.nodes[0].id].startTime=Date.now();
+  }
+  renderExecDashboard();
+  colorExecNodes();
+  cmd({action:'workflow',sub:'run',spec:WF.spec||WF.mermaid,name:WF.name||'unnamed'}).then(d=>{
+    appendExecLog('> run_all sent');
+    if(d&&d.error) appendExecLog('error: '+d.error);
+  }).catch(e=>appendExecLog('send error: '+e.message));
+}
+
+function execStep(){
+  WF.currentStep++;
+  const node=WF.nodes[WF.currentStep];
+  if(!node){showCopyToast(null,'No more steps');return}
+  WF.running=true;
+  WF.execState[node.id]={status:'running',output:'',stderr:'',time:0,startTime:Date.now()};
+  renderExecDashboard();
+  colorExecNodes();
+  cmd({action:'workflow',sub:'run_step',spec:WF.spec||WF.mermaid,name:WF.name||'unnamed',step:WF.currentStep}).then(d=>{
+    appendExecLog('> step '+WF.currentStep+' sent ('+node.id+')');
+    if(d&&d.error) appendExecLog('error: '+d.error);
+  }).catch(e=>appendExecLog('send error: '+e.message));
+}
+
+function execPause(){
+  WF.running=false;
+  appendExecLog('> paused');
+  cmd({action:'workflow',sub:'pause',name:WF.name||'unnamed'}).catch(()=>{});
+}
+
+function execStop(){
+  WF.running=false;
+  WF.currentStep=-1;
+  WF.nodes.forEach(n=>{
+    if(WF.execState[n.id]&&WF.execState[n.id].status==='running'){
+      WF.execState[n.id].status='pending';
+    }
+  });
+  renderExecDashboard();
+  colorExecNodes();
+  appendExecLog('> stopped');
+  cmd({action:'workflow',sub:'stop',name:WF.name||'unnamed'}).catch(()=>{});
+}
+
+function colorExecNodes(){
+  if(WF.mode!=='visual') return;
+  const area=$('diagram-area');
+  const svgEl=area.querySelector('svg');
+  if(!svgEl) return;
+  svgEl.querySelectorAll('.node').forEach(nodeEl=>{
+    const nodeId=(nodeEl.id||'').replace(/^flowchart-/,'').replace(/-\d+$/,'');
+    const es=WF.execState[nodeId];
+    if(!es) return;
+    const rects=nodeEl.querySelectorAll('rect,polygon,circle');
+    let fill='none',stroke='var(--border)';
+    if(es.status==='done'){fill='rgba(127,217,98,0.12)';stroke='#7fd962'}
+    else if(es.status==='running'){fill='rgba(230,180,80,0.12)';stroke='#e6b450'}
+    else if(es.status==='failed'){fill='rgba(255,107,107,0.12)';stroke='#ff6b6b'}
+    rects.forEach(r=>{r.style.fill=fill;r.style.stroke=stroke});
+  });
+}
+
+function appendExecLog(text){
+  const log=$('exec-log');
+  const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  log.textContent+='['+ts+'] '+text+'\n';
+  log.scrollTop=log.scrollHeight;
+}
+
+function renderExecDashboard(){
+  const container=$('exec-nodes');
+  container.innerHTML='';
+  let doneCount=0;
+  WF.nodes.forEach((n,i)=>{
+    const es=WF.execState[n.id]||{status:'pending',output:'',stderr:'',time:0};
+    if(es.status==='done')doneCount++;
+    const div=document.createElement('div');
+    div.className='exec-node';
+    const elapsed=es.status==='running'&&es.startTime?(Date.now()-es.startTime):es.time;
+    div.innerHTML=`<div class="exec-node-hd" onclick="this.nextElementSibling.classList.toggle('open')">
+      <span class="name">${n.id}: ${n.label}</span>
+      <span class="exec-node-status ${es.status}">${es.status}</span>
+    </div>
+    <div class="exec-node-body${es.output||es.stderr?' open':''}">
+      ${es.output?'<div class="exec-node-output">'+escHtml(es.output)+'</div>':''}
+      ${es.stderr?'<div class="exec-node-output" style="border-left:2px solid var(--red)">'+escHtml(es.stderr)+'</div>':''}
+      <div class="exec-node-timing">${elapsed>0?elapsed+'ms':'-'}</div>
+    </div>`;
+    container.appendChild(div);
+  });
+  // Progress bar
+  const pct=WF.nodes.length>0?(doneCount/WF.nodes.length*100):0;
+  $('exec-progress-bar').style.width=pct+'%';
+}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+// ========= PHASE 4: Mode Toggle =========
+
+function setMode(mode){
+  WF.mode=mode;
+  document.querySelectorAll('.mode-tab').forEach(t=>t.classList.toggle('active',t.dataset.mode===mode));
+  $('diagram-area').style.display=mode==='visual'?'block':'none';
+  $('code-area').style.display=mode==='code'?'block':'none';
+  $('exec-area').style.display=mode==='exec'?'block':'none';
+  closePopover();
+  renderCurrentMode();
+}
+
+function renderCurrentMode(){
+  if(WF.mode==='visual'){
+    renderDiagram();
+  } else if(WF.mode==='code'){
+    renderCodeEditor();
+  } else if(WF.mode==='exec'){
+    renderExecDashboard();
+  }
+}
+
+function renderCodeEditor(){
+  const area=$('code-area');
+  area.innerHTML='';
+  if(WF.nodes.length===0){
+    area.innerHTML='<div style="color:var(--fg3);padding:20px;font-size:10px;text-align:center">No workflow nodes. Synthesize a workflow through the agent or add a node.</div>';
+    // Add node button
+    const addBtn=document.createElement('button');
+    addBtn.className='exec-btn';
+    addBtn.textContent='+ Add Node';
+    addBtn.style.margin='0 auto';addBtn.style.display='block';
+    addBtn.onclick=addNewNode;
+    area.appendChild(addBtn);
+    return;
+  }
+  WF.nodes.forEach((n,i)=>{
+    const div=document.createElement('div');
+    div.className='node-editor';
+    const config=`node: ${n.id}\nlabel: ${n.label}\nprocessing_unit: ${n.processing_unit||''}\nlibs: ${n.libs||''}\nruntime: ${n.runtime||'native'}\ncommand: ${n.command||''}`;
+    div.innerHTML=`<div class="node-editor-hd">
+      <span class="name">${n.id}</span>
+      <div style="display:flex;gap:4px">
+        <button class="save-btn" data-idx="${i}" onclick="saveNodeConfig(${i})">Save</button>
+        <button class="save-btn" style="border-color:var(--red);color:var(--red)" onclick="deleteNodeFromCode(${i})">Delete</button>
+      </div>
+    </div>
+    <textarea data-idx="${i}">${config}</textarea>`;
+    area.appendChild(div);
+  });
+  // Add node button at bottom
+  const addDiv=document.createElement('div');
+  addDiv.style.textAlign='center';addDiv.style.padding='8px';
+  addDiv.innerHTML='<button class="exec-btn" onclick="addNewNode()">+ Add Node</button>';
+  area.appendChild(addDiv);
+}
+
+function saveNodeConfig(idx){
+  const ta=document.querySelector(`#code-area textarea[data-idx="${idx}"]`);
+  if(!ta)return;
+  const lines=ta.value.split('\n');
+  const node=WF.nodes[idx];
+  if(!node)return;
+  for(const line of lines){
+    const sep=line.indexOf(':');
+    if(sep===-1)continue;
+    const key=line.substring(0,sep).trim();
+    const val=line.substring(sep+1).trim();
+    if(key==='label') node.label=val;
+    else if(key==='processing_unit') node.processing_unit=val;
+    else if(key==='libs') node.libs=val;
+    else if(key==='runtime') node.runtime=val;
+    else if(key==='command') node.command=val;
+  }
+  const edges=extractEdges(WF.mermaid);
+  WF.mermaid=buildMermaidFromNodes(WF.nodes, edges);
+  pushVersion();
+  // Send configure to binary
+  cmd({action:'workflow',sub:'configure',spec:WF.mermaid,node:node.id,config:{
+    command:node.command,processing_unit:node.processing_unit,libs:node.libs,runtime:node.runtime
+  }}).catch(()=>{});
+  showCopyToast(ta,'Saved!');
+}
+
+function deleteNodeFromCode(idx){
+  const node=WF.nodes[idx];
+  if(!node)return;
+  WF.nodes.splice(idx,1);
+  let edges=extractEdges(WF.mermaid);
+  edges=edges.filter(e=>!e.includes(node.id));
+  WF.mermaid=buildMermaidFromNodes(WF.nodes, edges);
+  pushVersion();
+  postWorkflowDraft();
+  renderCodeEditor();
+}
+
+// ========= Toggle helpers =========
+
+function toggleVersions(){
+  versionsCollapsed=!versionsCollapsed;
+  $('version-area').classList.toggle('collapsed',versionsCollapsed);
+  $('version-arrow').textContent=versionsCollapsed?'+':'-';
+}
+
+function toggleOC(){
+  ocCollapsed=!ocCollapsed;
+  $('oc-body').classList.toggle('collapsed',ocCollapsed);
+  $('oc-arrow').textContent=ocCollapsed?'+':'-';
+}
+
+// ========= SSE + Connection =========
+
 function connect(){
   const es=new EventSource('/events');
-  es.onopen=()=>{$('dot').className='dot on';$('ss').textContent='live';joinCollab()};
-  es.onerror=()=>{$('dot').className='dot off';$('ss').textContent='reconnecting'};
-
+  es.onopen=()=>{$('dot').className='dot on';$('status').textContent='live'};
+  es.onerror=()=>{$('dot').className='dot off';$('status').textContent='reconnecting'};
   es.addEventListener('state',e=>{
     S=JSON.parse(e.data);
-    $('info').textContent=`${Object.keys(S.rings).length} rings`;
-    renderSidebar();renderDiagram();loadDatasources();autoload();loadTemplates();
+    renderRings();
+    $('info').textContent=Object.keys(S.rings).length+' rings';
+    cmd({action:'see',ring:'eco_organism',detail:'cockpit'}).then(renderCockpit);
+    cmd({action:'muscle',ring:'eco_organism'}).then(renderMotor);
   });
-  // Native binary sends 'response' events for all commands (absorb, see, etc.)
   es.addEventListener('response',e=>{
     const d=JSON.parse(e.data);
-    // Absorb response (has physics.domain/cockpit/organism)
     if(d.physics){
-      const p=d.physics;
-      if(p.domain) S.rings.eco_domain={...S.rings.eco_domain,gradient:p.domain.grad,speed:p.domain.speed,F:p.domain.F,decision:p.decision};
-      if(p.cockpit) S.rings.eco_cockpit={...S.rings.eco_cockpit,gradient:p.cockpit.grad,speed:p.cockpit.speed};
-      if(p.organism) S.rings.eco_organism={...S.rings.eco_organism,gradient:p.organism.grad,speed:p.organism.speed,rw:p.organism.rw,decision:p.decision};
-      renderSidebar();
-      addTimeline(d.substrate||d.data||'cmd',p.decision||'',d.signals||p.delta||0);
+      if(d.physics.domain)S.rings.eco_domain={gradient:d.physics.domain.grad,speed:d.physics.domain.speed,F:d.physics.domain.F,decision:d.physics.decision};
+      if(d.physics.organism)S.rings.eco_organism={gradient:d.physics.organism.grad,speed:d.physics.organism.speed,rw:d.physics.organism.rw,decision:d.physics.decision};
+      renderRings();
+      addEvent(d.substrate||'cmd',d.physics.decision,d.physics.delta||d.signals);
+      cmd({action:'see',ring:'eco_organism',detail:'cockpit'}).then(renderCockpit);
     }
-    // See/lint response (has name + gradient)
-    else if(d.name&&d.gradient!==undefined){
-      S.rings[d.name]={...S.rings[d.name],gradient:d.gradient,speed:d.speed,F:d.F,rw:d.rw||d.resonance_width,decision:d.decision||'EXPLORE'};
-      renderSidebar();
-    }
-  });
-  // Workflow events
-  es.addEventListener('workflow',e=>{
-    const d=JSON.parse(e.data);
-    if(d.event==='start'){
-      $('runtime').classList.add('active');
-      $('rt-status').className='running';$('rt-status').textContent=`running ${d.nodes||0} nodes, ${d.edges||0} edges`;
-      $('runtime-log').innerHTML='';
-      $('run-btn').textContent='Running';$('run-btn').disabled=true;
-    } else if(d.event==='step_start'){
-      addRuntimeStep(d.node,d.op,'running...',d.label,'running');
-    } else if(d.event==='step_done'){
-      _nodeOutputs[d.node]=d.output||'';
-      const statusColor=d.status==='success'?'#7fd962':d.status==='fail'?'#ff6b6b':'#e6b450';
-      updateRuntimeStep(d.node,d.output,d.decision,'',{
-        status:d.status,gradient:d.gradient,speed:d.speed,F:d.F,
-        edges:d.edges,duration_ms:d.duration_ms
-      });
-      highlightNode(d.node,statusColor);
-      addTimeline(d.label||d.node,d.status==='success'?'OK':d.status==='fail'?'FAIL':d.decision,d.delta);
-    } else if(d.event==='step_error'){
-      _nodeOutputs[d.node]=d.error||'';
-      updateRuntimeStep(d.node,d.error,'','fail',{status:'fail'});
-      highlightNode(d.node,'#ff6b6b');
-    } else if(d.event==='complete'){
-      $('rt-status').className='';$('rt-status').textContent='complete';
-      $('run-btn').textContent='Run';$('run-btn').disabled=false;
-      if(d.mermaid){$('mermaid-editor').value=d.mermaid;renderDiagram()}
-      // Show pass/fail summary with download options
-      if(d.uir){
-        const nodes=Object.values(d.uir.nodes||{});
-        const summary={success:0,fail:0,pending:0,total:nodes.length,passed:true};
-        nodes.forEach(n=>{summary[n.status]=(summary[n.status]||0)+1;if(n.status==='fail')summary.passed=false});
-        showSummary(summary);
-      }
-    } else if(d.event==='stopped'){
-      $('rt-status').className='';$('rt-status').textContent='stopped';
-      $('run-btn').textContent='Run';$('run-btn').disabled=false;
-    }
-  });
-  // Datasource events
-  es.addEventListener('datasource',e=>{loadDatasources()});
-  // Collaboration events
-  es.addEventListener('collab',e=>{
-    const d=JSON.parse(e.data);
-    if(d.event==='join'||d.event==='leave') renderPresence(d.clients||[]);
-    if(d.event==='workflow_update'&&d.client_id!==clientId){
-      $('mermaid-editor').value=d.mermaid;renderDiagram();
-    }
-  });
-}
-
-// ═══ COLLABORATION ═══
-function joinCollab(){
-  clientName=sessionStorage.getItem('csos-name')||prompt('Your name for collaboration:')||'anon';
-  sessionStorage.setItem('csos-name',clientName);
-  fetch('/api/collaborate',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'join',client_id:clientId,name:clientName})})
-    .then(r=>r.json()).then(d=>renderPresence(d.clients||[]));
-}
-
-function renderPresence(clients){
-  $('presence').innerHTML='';
-  $('collab-list').innerHTML='';
-  clients.forEach(c=>{
-    const av=document.createElement('div');av.className='avatar';av.style.background=c.color;
-    av.textContent=c.name[0].toUpperCase();av.title=c.name;
-    $('presence').appendChild(av);
-    $('collab-list').innerHTML+=`<div class="collab-user"><div class="collab-dot" style="background:${c.color}"></div>${c.name}</div>`;
-  });
-}
-
-// Broadcast mermaid changes to collaborators (debounced)
-let _syncTimer=null;
-$('mermaid-editor').addEventListener('input',()=>{
-  if(_syncTimer)clearTimeout(_syncTimer);
-  _syncTimer=setTimeout(()=>{
-    fetch('/api/collaborate',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({action:'workflow_update',client_id:clientId,mermaid:$('mermaid-editor').value})});
-  },1000);
-});
-
-// ═══ MERMAID RENDER ═══
-async function renderDiagram(){
-  const src=$('mermaid-editor').value.trim();
-  if(!src)return;
-  const mid='d'+(mc++);
-  $('diagram-render').innerHTML=`<div id="${mid}"></div>`;
-  try{
-    const{svg}=await mermaid.render(mid+'_r',src);
-    $(mid).innerHTML=svg;
-  }catch(e){
-    $(mid).innerHTML=`<pre style="color:var(--red);font-size:10px;padding:10px">${e.message}</pre>`;
-  }
-}
-
-function highlightNode(nodeId,color){
-  const el=document.querySelector(`[id*="flowchart-${nodeId}-"]`)||document.querySelector(`[id*="${nodeId}"]`);
-  if(el){
-    const rect=el.querySelector('rect')||el.querySelector('polygon')||el.querySelector('circle');
-    if(rect){rect.style.stroke=color;rect.style.strokeWidth='3';setTimeout(()=>{rect.style.stroke='';rect.style.strokeWidth=''},3000)}
-  }
-}
-
-// ═══ WORKFLOW EXECUTION ═══
-function runWorkflow(){
-  const mermaid_src=$('mermaid-editor').value.trim();
-  if(!mermaid_src)return;
-  $('runtime').classList.add('active');
-  fetch('/api/workflow/run',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({mermaid:mermaid_src,name:'wf_'+Date.now()})})
-    .then(r=>r.json()).then(d=>{
-      if(d.error){addRuntimeStep('ERR','','',d.error,'error');$('rt-status').textContent=d.error}
-    });
-}
-function stopWorkflow(){
-  fetch('/api/workflow/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-}
-function clearRuntime(){$('runtime-log').innerHTML='';$('runtime').classList.remove('active')}
-
-function addRuntimeStep(node,op,out,label,cls,extra){
-  const el=document.createElement('div');el.className='rt-step '+(cls||'');el.id='rt_'+node;
-  el.innerHTML=`<span class="rt-node">${node}</span><span class="rt-op">${op||''}</span><span class="rt-out">${out||label||''}</span>`;
-  $('runtime-log').appendChild(el);
-  $('runtime-log').scrollTop=$('runtime-log').scrollHeight;
-}
-function updateRuntimeStep(node,output,decision,cls,extra){
-  const el=$('rt_'+node);
-  if(!el)return;
-  const status=extra?.status||cls||'';
-  el.className='rt-step '+status;
-  let html=`<span class="rt-node">${node}</span>`;
-  // Duration
-  if(extra?.duration_ms) html+=`<span class="rt-meta">${extra.duration_ms.toFixed(0)}ms</span>`;
-  // Decision badge
-  if(decision) html+=` <span class="rt-dec ${decision}">${decision}</span>`;
-  // Physics metrics
-  if(extra?.gradient!==undefined) html+=`<span class="rt-meta">grad=${extra.gradient} spd=${(extra.speed||0).toFixed(3)} F=${(extra.F||0).toFixed(3)}</span>`;
-  // Edge rates
-  if(extra?.edges) extra.edges.forEach(e=>{
-    if(e.rate>0) html+=`<span style="color:var(--cyan);font-size:7px;margin-left:4px">${e.rate.toFixed(1)}/s</span>`;
-  });
-  // Copy button
-  if(output) html+=`<button class="rt-copy" onclick="copyResult('${node}')">copy</button>`;
-  // Inline result (expandable)
-  if(output){
-    const truncated=(output||'').slice(0,300);
-    html+=`<div class="rt-inline" id="rt_out_${node}" onclick="expandResult('${node}')" title="Click to expand">${truncated}</div>`;
-  }
-  el.innerHTML=html;
-}
-// Store full outputs for copy/download
-let _nodeOutputs={};
-function copyResult(node){
-  const text=_nodeOutputs[node]||'';
-  navigator.clipboard?.writeText(text).then(()=>addTimeline(node,'COPIED',0));
-}
-function expandResult(node){
-  const el=$('rt_out_'+node);
-  if(!el)return;
-  const full=_nodeOutputs[node]||'';
-  if(el.style.maxHeight==='none'){el.style.maxHeight='80px';el.textContent=full.slice(0,300)}
-  else{el.style.maxHeight='none';el.textContent=full}
-}
-function downloadAs(fmt){
-  window.open('/api/download/'+fmt,'_blank');
-}
-function showSummary(status){
-  const s=$('wf-summary');
-  if(!status||!status.total){s.className='';return}
-  s.className='show';
-  const passed=status.passed;
-  s.innerHTML=`<span class="sum-badge ${passed?'pass':'fail'}">${passed?'PASSED':'FAILED'}</span>
-    <span style="color:var(--green)">${status.success} ok</span>
-    <span style="color:var(--red)">${status.fail} fail</span>
-    <span style="color:var(--fg3)">${status.pending} pending</span>
-    <span style="flex:1"></span>
-    <button class="ctrl-btn" onclick="downloadAs('json')" style="padding:2px 6px">Download JSON</button>
-    <button class="ctrl-btn" onclick="downloadAs('csv')" style="padding:2px 6px">Download CSV</button>
-    <button class="ctrl-btn" onclick="downloadAs('summary')" style="padding:2px 6px">Download TXT</button>`;
-}
-
-function saveDiagram(){
-  const src=$('mermaid-editor').value;
-  sessionStorage.setItem('csos-workflow',src);
-  addTimeline('workflow','SAVED',0);
-}
-
-// ═══ DATASOURCES ═══
-function loadDatasources(){
-  fetch('/api/datasources').then(r=>r.json()).then(d=>{
-    const ds=d.datasources||[];
-    $('ds-cnt').textContent=ds.length;
-    $('ds-list').innerHTML='';
-    ds.forEach(s=>{
-      const st=s.status==='connected'?'ok':s.status==='configured'?'cfg':'err';
-      const el=document.createElement('div');el.className='ds';
-      el.innerHTML=`<div><span class="ds-status ${st}"></span><span class="ds-name">${s.name}</span></div><div class="ds-meta">${s.type} | ${s.status}</div>`;
-      el.onclick=()=>testDS(s.name);
-      $('ds-list').appendChild(el);
-    });
-  }).catch(()=>{});
-}
-function showAddDS(){$('modal-overlay').classList.add('show')}
-function closeModal(){$('modal-overlay').classList.remove('show')}
-function addDS(){
-  const ds={action:'add',name:$('ds-name').value,type:$('ds-type').value,url:$('ds-url').value,
-    auth:{method:$('ds-auth-method').value,token:$('ds-token').value}};
-  fetch('/api/datasources',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ds)})
-    .then(r=>r.json()).then(()=>{closeModal();loadDatasources()});
-}
-function testDS(name){
-  fetch('/api/datasources',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'test',name})}).then(r=>r.json()).then(d=>{
-      addTimeline(name,d.status||'tested',0);loadDatasources();
-    });
-}
-
-// ═══ AUTOLOADER ═══
-function autoload(){
-  fetch('/api/autoload').then(r=>r.json()).then(d=>{
-    const arts=d.artifacts||[];
-    const know=d.knowledge||{};
-    $('vol-cnt').textContent=arts.length;
-    $('vol-list').innerHTML='';
-    arts.forEach(a=>{
-      const icon=a.type==='.csos'?'\u25C8':a.type==='.json'?'{}':'\u25A2';
-      const badge=a.atoms?a.atoms.length+' atoms':a.keys?a.keys.length+' keys':'';
-      const el=document.createElement('div');el.className='vol';
-      el.innerHTML=`<span class="v-icon">${icon}</span><span class="v-name">${a.name}</span>${badge?`<span class="v-badge">${badge}</span>`:''}`;
-      el.onclick=()=>insertArtifact(a);
-      $('vol-list').appendChild(el);
-    });
-  }).catch(()=>{});
-}
-
-function insertArtifact(art){
-  // Insert artifact atoms/rings as mermaid nodes into the editor
-  const editor=$('mermaid-editor');
-  let insert='';
-  if(art.atoms){
-    art.atoms.forEach(a=>{insert+=`  ${a}["${a}"]\n`});
-  }
-  if(art.rings){
-    art.rings.forEach(r=>{insert+=`  ${r}{{"${r}"}}\n`});
-  }
-  if(insert){
-    editor.value=editor.value.trimEnd()+'\n'+insert;
-    renderDiagram();
-  }
-}
-
-// ═══ SIDEBAR ═══
-function renderSidebar(){
-  $('ring-cnt').textContent=Object.keys(S.rings||{}).length;
-  $('ring-list').innerHTML='';
-  for(const[name,s] of Object.entries(S.rings||{})){
-    const dec=s.decision||'EXPLORE';
-    $('ring-list').innerHTML+=`<div class="ring-mini"><span class="rn">${name}</span><span class="rd ${dec==='EXECUTE'?'ex':'xp'}">${dec} ${s.gradient||0}</span></div>`;
-  }
-}
-
-// ═══ SCAN ═══
-function scan(type){
-  const target=$('scan-target').value.trim()||'eco_organism';
-  let cmd;
-  switch(type){
-    case 'see':cmd={action:'see',ring:target,detail:'cockpit'};break;
-    case 'lint':cmd={action:'lint',ring:target};break;
-    case 'diagnose':cmd={action:'diagnose'};break;
-    case 'observe':cmd={action:'absorb',substrate:target,output:`scan ${target} ${Date.now()}`};break;
-  }
-  fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cmd)})
-    .then(r=>r.json()).then(d=>addTimeline(target,d.decision||type.toUpperCase(),d.delta||0));
-}
-
-// ═══ COMMAND ═══
-$('cmd').onkeydown=e=>{if(e.key==='Enter')sendCmd()};
-$('cmd-send').onclick=()=>sendCmd();
-function sendCmd(){
-  const v=$('cmd').value.trim();if(!v)return;
-  let cmd;try{cmd=JSON.parse(v)}catch{cmd={action:'absorb',substrate:'canvas',output:v}}
-  fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cmd)})
-    .then(r=>r.json()).then(d=>addTimeline(d.substrate||cmd.action,d.decision||'',d.delta||0));
-  $('cmd').value='';
-}
-
-// ═══ TIMELINE ═══
-function addTimeline(sub,dec,delta){
-  tlCount++;$('tl-cnt').textContent=tlCount;
-  const el=document.createElement('div');el.className='tl';
-  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  el.innerHTML=`<span class="tm">${t}</span><span class="sub" title="${sub||''}">${sub||''}</span><span class="dec-t ${dec||''}">${dec||''}</span><span class="delta">${delta?'d='+delta:''}</span>`;
-  $('timeline').prepend(el);
-  if($('timeline').children.length>100)$('timeline').removeChild($('timeline').lastChild);
-}
-
-// ═══ TEMPLATES ═══
-function loadTemplates(){
-  fetch('/api/templates').then(r=>r.json()).then(d=>{
-    const tmpls=d.templates||[];
-    $('tmpl-cnt').textContent=tmpls.length;
-    $('tmpl-list').innerHTML='';
-    tmpls.forEach(t=>{
-      const el=document.createElement('div');el.className='tmpl';
-      let tags='';
-      (t.connectors||[]).forEach(c=>{tags+=`<span class="t-tag conn">${c}</span>`});
-      (t.runtimes||[]).forEach(r=>{tags+=`<span class="t-tag rt">${r}</span>`});
-      el.innerHTML=`<div class="t-name">${t.name}</div><div class="t-desc">${t.description}</div><div class="t-tags">${tags}
-        <span class="t-tag" style="color:var(--accent);cursor:pointer" onclick="event.stopPropagation();adaptTemplate('${t.id}')">adapt</span></div>`;
-      el.onclick=()=>applyTemplate(t.id);
-      $('tmpl-list').appendChild(el);
-    });
-  }).catch(()=>{});
-}
-function applyTemplate(tid){
-  fetch('/api/template/apply',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({template:tid,config:{}})})
-    .then(r=>r.json()).then(d=>{
-      if(d.raw_mermaid){
-        $('mermaid-editor').value=d.raw_mermaid;
-        renderDiagram();
-        addTimeline('template',tid,0);
-      }
-    });
-}
-function adaptTemplate(tid){
-  // Adaptive: auto-wires user's datasources and artifacts into template
-  fetch('/api/template/apply',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({template:tid,adapt:true})})
-    .then(r=>r.json()).then(d=>{
+    else if(d.synthesized||d.workflow){
+      // Phase 2: Handle workflow/synthesized responses
+      const wfName=d.workflow||d.name||'unnamed';
+      WF.name=wfName;
       if(d.mermaid){
-        $('mermaid-editor').value=d.mermaid;
-        renderDiagram();
-        addTimeline('adapt',tid+' + datasources',0);
+        WF.mermaid=d.mermaid;
+        WF.nodes=parseMermaidNodes(d.mermaid);
+        // Merge any node metadata from response
+        if(d.nodes&&Array.isArray(d.nodes)){
+          d.nodes.forEach(rn=>{
+            const existing=WF.nodes.find(n=>n.id===rn.id||n.id===rn.name);
+            if(existing){
+              if(rn.processing_unit)existing.processing_unit=rn.processing_unit;
+              if(rn.libs)existing.libs=Array.isArray(rn.libs)?rn.libs.join(','):rn.libs;
+              if(rn.runtime)existing.runtime=rn.runtime;
+              if(rn.command)existing.command=rn.command;
+              if(rn.label)existing.label=rn.label;
+            }
+          });
+        }
+        pushVersion();
+        renderCurrentMode();
       }
-    });
+      if(d.spec) WF.spec=d.spec;
+      addEvent('wf:'+wfName,d.final_decision||d.decision||'OK',d.total_delta||d.delta||0);
+    }
+    else if(d.node_status){
+      // Execution status update for a specific node
+      const ns=d.node_status;
+      if(ns.node_id&&WF.execState[ns.node_id]){
+        const es=WF.execState[ns.node_id];
+        if(ns.status) es.status=ns.status;
+        if(ns.output) es.output+=(es.output?'\n':'')+ns.output;
+        if(ns.stderr) es.stderr+=(es.stderr?'\n':'')+ns.stderr;
+        if(ns.status==='done'||ns.status==='failed'){
+          es.time=es.startTime?Date.now()-es.startTime:0;
+          // Start next node if running all
+          if(WF.running&&ns.status==='done'){
+            const idx=WF.nodes.findIndex(n=>n.id===ns.node_id);
+            if(idx>=0&&idx<WF.nodes.length-1){
+              const next=WF.nodes[idx+1];
+              WF.execState[next.id]={status:'running',output:'',stderr:'',time:0,startTime:Date.now()};
+            } else {
+              WF.running=false;
+              appendExecLog('pipeline complete');
+            }
+          }
+          if(ns.status==='failed'){
+            WF.running=false;
+            appendExecLog('node '+ns.node_id+' failed');
+          }
+        }
+        if(WF.mode==='exec') renderExecDashboard();
+        colorExecNodes();
+        appendExecLog(ns.node_id+': '+ns.status+(ns.output?' - '+ns.output.substring(0,80):''));
+      }
+    }
+    else if(d.exec_result){
+      // Map result decision to node colors
+      const nodeId=d.exec_result.node;
+      if(nodeId&&WF.execState[nodeId]){
+        const dec=d.exec_result.decision||'';
+        if(dec==='EXECUTE') WF.execState[nodeId].status='done';
+        else if(dec==='EXPLORE') WF.execState[nodeId].status='running';
+        else if(dec==='ASK') WF.execState[nodeId].status='failed';
+        WF.execState[nodeId].output+=(d.exec_result.output||'');
+        if(WF.mode==='exec') renderExecDashboard();
+        colorExecNodes();
+      }
+    }
+    else if(d.cluster) addEvent('cl:'+d.cluster,d.state||d.decision,0);
+    else if(d.registered) addEvent('src:'+d.registered,'OK',d.delta);
+    else if(d.wrapper) addEvent('src:'+d.wrapper.name,d.wrapper.validated?'OK':'?',0);
+    else if(d.name&&d.gradient!==undefined) renderCockpit(d);
+    else if(d.motor_entries!==undefined) renderMotor(d);
+    else if(d.status) addEvent('sys',d.status==='healthy'?'OK':'WARN',0);
+    else if(d.compacted!==undefined) addEvent('compact','OK',d.total);
+    loadSidebar();
+  });
 }
 
-// ═══ BOOT ═══
-connect();
-const savedWf=sessionStorage.getItem('csos-workflow');
-if(savedWf)$('mermaid-editor').value=savedWf;
-setTimeout(renderDiagram,500);
-window.addEventListener('beforeunload',()=>{
-  fetch('/api/collaborate',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'leave',client_id:clientId})}).catch(()=>{});
+function cmd(r){return fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(r)}).then(r=>r.json())}
+
+function connectOC(){
+  const port=prompt('OpenCode web port:',ocPort);
+  if(!port)return;
+  ocPort=parseInt(port);
+  $('oc-frame').src=`http://localhost:${ocPort}`;
+  $('oc-frame').style.display='block';
+  $('oc-splash').classList.add('hidden');
+}
+
+// ========= Sidebar (with copy support) =========
+
+let sidebarTimer=null;
+async function loadSidebar(){
+  clearTimeout(sidebarTimer);
+  sidebarTimer=setTimeout(async()=>{
+    try{
+      const sr=await cmd({action:'source',sub:'wrappers'});
+      const el=$('sources');
+      const wrappers=sr.wrappers||[];
+      if(wrappers.length===0){el.innerHTML='<span style="color:var(--fg3)">none registered</span>';return}
+      el.innerHTML='';
+      wrappers.forEach(w=>{
+        const lvl=w.strength>0.5?3:w.strength>0.2?2:w.strength>0.05?1:0;
+        const div=document.createElement('div');
+        div.className='src-i';
+        div.innerHTML=`<span class="src-nm">${w.name}</span><span class="src-lvl l${lvl}">${(w.strength*100).toFixed(0)}%</span>`;
+        addCopyHandler(div, w.name+': '+(w.strength*100).toFixed(0)+'%');
+        el.appendChild(div);
+      });
+    }catch{ $('sources').innerHTML='<span style="color:var(--fg3)">-</span>'; }
+
+    try{
+      const cl=await cmd({action:'cluster',sub:'list'});
+      const el=$('clusters');
+      const clusters=cl.clusters||[];
+      if(clusters.length===0){el.innerHTML='<span style="color:var(--fg3)">none</span>';return}
+      el.innerHTML='';
+      clusters.forEach(c=>{
+        const div=document.createElement('div');
+        div.className='cl-i';
+        div.innerHTML=`<span class="cl-nm">${c.id}</span><span class="dec ${c.state}">${c.state}</span>`;
+        addCopyHandler(div, c.id+': '+c.state);
+        el.appendChild(div);
+      });
+    }catch{ $('clusters').innerHTML='<span style="color:var(--fg3)">-</span>'; }
+  },300);
+}
+
+// ========= Quick commands =========
+
+function sendQ(action){
+  cmd(action).then(d=>{
+    if(d.name)renderCockpit(d);
+    else if(d.motor_entries!==undefined)renderMotor(d);
+    else if(d.status)addEvent('diagnose',d.status==='healthy'?'OK':'WARN',0);
+    else if(d.compacted!==undefined)addEvent('compact','OK',d.total);
+  });
+}
+
+// ========= Renderers (with copy support) =========
+
+function renderRings(){
+  $('rings').innerHTML='';
+  for(const[name,r] of Object.entries(S.rings||{}).sort(([a],[b])=>a.localeCompare(b))){
+    if(!name.startsWith('eco_'))continue;
+    const dec=r.decision||'EXPLORE',g=r.gradient||0,sp=r.speed||0,rw=r.rw||0.833;
+    const div=document.createElement('div');
+    div.className='ring';
+    div.innerHTML=`<div class="ring-hd"><span class="ring-nm">${name.replace('eco_','')}</span><span class="dec ${dec}">${dec}</span></div>
+      <div class="ring-m"><span>grad</span><b>${g}</b><span>spd</span><b>${typeof sp==='number'?sp.toFixed(1):sp}</b></div>
+      <div class="bar-t"><div class="bar-f" style="width:${Math.min(100,sp/rw*100)}%;background:${sp>rw?'var(--green)':'var(--orange)'}"></div></div>`;
+    addCopyHandler(div, name+': decision='+dec+' grad='+g+' speed='+sp);
+    $('rings').appendChild(div);
+  }
+}
+
+function renderMotor(d){
+  if(!d?.top)return;
+  $('motor').innerHTML='';
+  d.top.filter(t=>t.strength>0).slice(0,10).forEach(t=>{
+    const div=document.createElement('div');
+    div.className='motor-i';
+    div.innerHTML=`<span class="motor-h">${t.hash}</span><div class="motor-b"><div class="motor-f" style="width:${t.strength*100}%"></div></div><span class="motor-s">${t.strength.toFixed(2)}</span>`;
+    addCopyHandler(div, t.hash+': '+t.strength.toFixed(4));
+    $('motor').appendChild(div);
+  });
+}
+
+function renderCockpit(d){
+  if(!d||!d.name)return;
+  $('cockpit').innerHTML='';
+  const fields={Mode:d.mode,Decision:d.decision,Speed:d.speed?.toFixed(3),rw:d.resonance_width?.toFixed(3),
+    F:d.F?.toFixed(3),Gradient:d.gradient,Ratio:d.action_ratio?.toFixed(3),
+    Calvin:d.calvin_rate?.toFixed(3),Motor:d.motor_entries};
+  for(const[k,v] of Object.entries(fields)){
+    if(v===undefined||v===null)continue;
+    let c='var(--accent)';
+    if(k==='Decision')c=v==='EXECUTE'?'var(--green)':v==='ASK'?'var(--red)':'var(--orange)';
+    if(k==='Mode')c=v==='build'?'var(--green)':'var(--orange)';
+    const div=document.createElement('div');
+    div.className='kv';
+    div.innerHTML=`<span class="k">${k}</span><span class="v" style="color:${c}">${v}</span>`;
+    addCopyHandler(div, k+': '+v);
+    $('cockpit').appendChild(div);
+  }
+}
+
+function addEvent(sub,dec,delta){
+  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const el=document.createElement('div');el.className='ev';
+  const text=t+' '+sub+' '+dec+(delta?' d='+delta:'');
+  el.innerHTML=`<span class="t">${t}</span><span class="s" title="${sub}">${sub}</span>${dec?`<span class="dec ${dec}" style="font-size:6px">${dec}</span>`:''}<span style="color:var(--cyan);font-size:7px">${delta?'d='+delta:''}</span>`;
+  addCopyHandler(el, text);
+  $('events').prepend(el);
+  while($('events').children.length>60)$('events').removeChild($('events').lastChild);
+}
+
+// ========= Close popover on outside click =========
+document.addEventListener('click', function(e){
+  const pop=$('node-popover');
+  if(pop.style.display==='block'&&!pop.contains(e.target)){
+    closePopover();
+  }
 });
+
+// ========= BOOT =========
+connect();
+loadSidebar();
+setMode('visual');
 </script>
 </body>
 </html>
