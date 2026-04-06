@@ -23,40 +23,52 @@ import { spawn, execSync, ChildProcess } from "child_process"
 const HTTP_PORT = 4200
 
 // Try HTTP first (bidirectional — canvas sees it via SSE)
-function httpPost(req: object): string | null {
-  try {
-    return execSync(
-      `curl -sf -m 5 -X POST http://localhost:${HTTP_PORT}/api/command ` +
-      `-H 'Content-Type: application/json' ` +
-      `-d '${JSON.stringify(req).replace(/'/g, "\\'")}'`,
-      { encoding: "utf-8", timeout: 6000, cwd: process.cwd() }
-    ).trim()
-  } catch {
-    return null
-  }
+async function httpPostAsync(req: object): Promise<string | null> {
+  return new Promise((resolve) => {
+    const data = JSON.stringify(req)
+    const options = {
+      hostname: 'localhost',
+      port: HTTP_PORT,
+      path: '/api/command',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      timeout: 5000,
+    }
+    const r = require('http').request(options, (res: any) => {
+      let body = ''
+      res.on('data', (c: Buffer) => { body += c.toString() })
+      res.on('end', () => resolve(body.trim() || null))
+    })
+    r.on('error', () => resolve(null))
+    r.on('timeout', () => { r.destroy(); resolve(null) })
+    r.write(data)
+    r.end()
+  })
 }
 
 // Fall back to stdin pipe (agent-only, canvas doesn't see it)
 let d: ChildProcess | null = null
 let ok = false
 
-function boot() {
-  if (d && !d.killed && ok) return
+function bootAsync(): Promise<void> {
+  if (d && !d.killed && ok) return Promise.resolve()
   const nativePath = process.cwd() + "/csos"
-  try {
-    d = spawn(nativePath, [], {
-      cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"], env: process.env
-    })
-    d.on("exit", () => { d = null; ok = false })
-    ok = false; d.stdout!.once("data", () => { ok = true })
-    const t = Date.now()
-    while (!ok && Date.now() - t < 2000) execSync("sleep 0.05")
-  } catch { d = null; ok = false }
+  return new Promise((resolve) => {
+    try {
+      d = spawn(nativePath, [], {
+        cwd: process.cwd(), stdio: ["pipe", "pipe", "pipe"], env: process.env
+      })
+      d.on("exit", () => { d = null; ok = false })
+      ok = false
+      const timeout = setTimeout(() => { resolve() }, 2000)
+      d.stdout!.once("data", () => { ok = true; clearTimeout(timeout); resolve() })
+    } catch { d = null; ok = false; resolve() }
+  })
 }
 
-function pipeStdin(req: object): string {
+async function pipeStdin(req: object): Promise<string> {
   try {
-    boot()
+    await bootAsync()
     if (d && ok) {
       let buf = ""
       return new Promise<string>(res => {
@@ -68,7 +80,7 @@ function pipeStdin(req: object): string {
         d!.stdout!.on("data", fn)
         d!.stdin!.write(JSON.stringify(req) + "\n")
         setTimeout(() => { d!.stdout!.off("data", fn); res('{"error":"timeout"}') }, 15000)
-      }) as unknown as string
+      })
     }
   } catch {}
   try {
@@ -81,9 +93,9 @@ function pipeStdin(req: object): string {
   }
 }
 
-function send(req: object): string {
+async function sendAsync(req: object): Promise<string> {
   // HTTP first: bidirectional (canvas sees it via SSE)
-  const httpResult = httpPost(req)
+  const httpResult = await httpPostAsync(req)
   if (httpResult) return httpResult
   // Fallback: stdin pipe (agent-only)
   return pipeStdin(req)
@@ -91,11 +103,13 @@ function send(req: object): string {
 
 export default tool({
   description:
-    "CSOS native membrane. THE ONLY tool for all I/O. " +
-    "22 actions. Bidirectional: agent → binary → SSE → canvas (user sees everything). " +
-    "command+substrate=exec. url=web. output+substrate=absorb. content=deliver. " +
-    "channel+payload=egress. explain=reasoning. ring=see. key+value=remember. no args=diagnose. " +
-    "Do NOT use write/edit/webfetch/websearch/bash — everything through csos-core.",
+    "THE ONLY tool. Routes ALL I/O through native ./csos binary. " +
+    "26 actions: workflow(synthesize|draft|run|run_step|configure|complete|versions|restore|jobs), " +
+    "ir(full|spec|compile|runtime), rdma(register|diffuse|status), " +
+    "auth(register|list|check), source(validate|wrappers), cluster(create|status|list), " +
+    "command+substrate=exec, url=web, output+substrate=absorb, content=deliver, " +
+    "channel+payload=egress, explain=reasoning, ring=see, key+value=remember, no args=diagnose. " +
+    "NEVER use write/edit/webfetch/websearch/bash.",
   args: {
     substrate: tool.schema.string().optional().describe("What you're operating on"),
     command: tool.schema.string().optional().describe("Shell command to exec + auto-absorb"),
@@ -136,12 +150,31 @@ export default tool({
     // Cluster management
     cluster: tool.schema.string().optional().describe("Cluster sub-action: create, status, list"),
     clusterId: tool.schema.string().optional().describe("Cluster instance ID"),
+    // Universal IR
+    ir: tool.schema.string().optional().describe("IR layer: full, spec, compile, runtime"),
+    // RDMA operations
+    rdma: tool.schema.string().optional().describe("RDMA sub-action: register, diffuse, status"),
+    remoteRing: tool.schema.string().optional().describe("Remote ring name for RDMA diffuse"),
+    nodeId: tool.schema.string().optional().describe("Remote node ID for RDMA"),
   },
   async execute(args) {
     const req: any = {}
 
+    // Universal IR
+    if (args.ir) {
+      req.action = "ir"; req.detail = args.ir
+      if (args.spec) req.spec = args.spec
+      if (args.name) req.name = args.name
+    }
+    // RDMA operations
+    else if (args.rdma) {
+      req.action = "rdma"; req.sub = args.rdma
+      if (args.ring) req.ring = args.ring
+      if (args.remoteRing) req.remote_ring = args.remoteRing
+      if (args.nodeId) req.node = args.nodeId
+    }
     // Workflow actions
-    if (args.workflow) {
+    else if (args.workflow) {
       req.action = "workflow"; req.sub = args.workflow
       if (args.spec) req.spec = args.spec
       if (args.name) req.name = args.name
@@ -209,6 +242,6 @@ export default tool({
       req.action = "diagnose"
     }
 
-    return send(req)
+    return await sendAsync(req)
   },
 })

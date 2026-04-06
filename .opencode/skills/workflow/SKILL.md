@@ -1,6 +1,6 @@
 # Workflow Skill
 
-Conversational workflow lifecycle through `@csos-living`. All interaction through OpenCode — the canvas is a passive observer.
+Conversational workflow lifecycle through `@csos-living`. All interaction through OpenCode.
 
 ## Commands
 
@@ -98,14 +98,13 @@ csos-core workflow=restore name=my_pipeline version=2
 
 ```
 1. User describes intent → Agent synthesizes workflow
-2. User previews Mermaid diagram in canvas (Visual mode)
-3. User edits nodes interactively → Agent re-drafts
-4. User switches to Code mode → Configures per-node commands
-5. User switches to Exec mode → Runs workflow with real commands
-6. Each node executes configured command via membrane
-7. Physics tracks execution (Boyer decides, motor strengthens)
-8. Results stream to canvas via SSE (per-node status, output, timing)
-9. User iterates: edit spec → reconfigure → re-run
+2. User copies Preview action → sees Mermaid spec + node table
+3. User copies Code action → configures per-node commands
+4. User copies Execute action → runs workflow with real commands
+5. Each node executes configured command via membrane
+6. Physics tracks execution (Boyer decides, motor strengthens)
+7. Agent presents results with action block (Preview/Code/Execute)
+8. User iterates: edit spec → reconfigure → re-run
 ```
 
 ## Workflow Lifecycle
@@ -129,3 +128,43 @@ Every workflow action flows through the 5 equations:
 - **Boyer**: Decision gate (speed > rw → EXECUTE the cluster)
 - **Forster**: Cross-stage coupling (data flows between nodes)
 - **Calvin**: Discovers patterns across workflow runs (synthesizes new atoms)
+
+## Universal IR
+
+### Get full IR (all 3 layers)
+```
+csos-core ir=full
+```
+Returns: spec layer (atoms, rings, mermaid) + compile layer (formulas, params, JIT, constants) + runtime layer (physics, motor, RDMA endpoints)
+
+### Get specific layer
+```
+csos-core ir=spec
+csos-core ir=compile
+csos-core ir=runtime
+```
+
+## RDMA Operations
+
+### Register ring for remote access
+```
+csos-core rdma=register ring=eco_organism
+```
+
+### Cross-node Forster coupling
+```
+csos-core rdma=diffuse ring=eco_domain remoteRing=eco_domain nodeId=1
+```
+
+### RDMA status
+```
+csos-core rdma=status
+```
+
+## View-Agent Binding
+
+| View | Agent | IR Layer | Key Commands |
+|------|-------|----------|-------------|
+| Visual | @csos-visual | spec | synthesize, draft, versions |
+| Code | @csos-codegen | compile | configure, ir=compile |
+| Exec | @csos-runtime | runtime | run, run_step, rdma, cluster |

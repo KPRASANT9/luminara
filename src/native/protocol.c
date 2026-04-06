@@ -2204,6 +2204,230 @@ int csos_handle(csos_organism_t *org, const char *json_in,
         return -1;
     }
 
+    /* ═══ IR: Universal Intermediate Representation ═══ */
+    /*
+     * Generates a single runtime representation per query combining:
+     *   1. SPEC layer — Mermaid DAG, atom definitions, edges, spectral config
+     *   2. COMPILE layer — formula IR, param maps, optimization state
+     *   3. RUNTIME layer — JIT pointers, motor state, ring physics, RDMA endpoints
+     *
+     * This is the Universal IR: one representation for Visual, Code, and Exec views.
+     * Each view reads the layer it needs. Agents edit their respective layers.
+     * LLVM JIT compiles spec → IR → native in one pass.
+     */
+    if (strcmp(action, "ir") == 0) {
+        char ir_detail[32] = "full";
+        char ir_spec[8192] = {0}, ir_name[128] = {0};
+        json_str(json_in, "detail", ir_detail, sizeof(ir_detail));
+        json_str(json_in, "spec", ir_spec, sizeof(ir_spec));
+        json_str(json_in, "name", ir_name, sizeof(ir_name));
+
+        csos_membrane_t *d = _d;
+        csos_membrane_t *k = _k;
+        csos_membrane_t *o = _o;
+
+        int pos = snprintf(json_out, out_sz, "{\"ir\":true,\"layers\":{");
+
+        /* ── SPEC LAYER: Visual view reads this ── */
+        if (strcmp(ir_detail, "full") == 0 || strcmp(ir_detail, "spec") == 0) {
+            pos += snprintf(json_out + pos, out_sz - pos, "\"spec\":{");
+            /* Atoms from eco.csos */
+            pos += snprintf(json_out + pos, out_sz - pos, "\"atoms\":[");
+            if (d) {
+                for (int i = 0; i < d->atom_count && pos < (int)out_sz - 512; i++) {
+                    if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                    pos += snprintf(json_out + pos, out_sz - pos,
+                        "{\"name\":\"%s\",\"formula\":\"%s\",\"compute\":\"%s\","
+                        "\"source\":\"%s\",\"spectral\":[%.1f,%.1f],"
+                        "\"broadband\":%s,\"rw\":%.4f,\"params\":%d}",
+                        d->atoms[i].name, d->atoms[i].formula, d->atoms[i].compute,
+                        d->atoms[i].source, d->atoms[i].spectral[0], d->atoms[i].spectral[1],
+                        d->atoms[i].broadband ? "true" : "false",
+                        d->atoms[i].rw, d->atoms[i].param_count);
+                }
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "],");
+            /* Rings */
+            pos += snprintf(json_out + pos, out_sz - pos, "\"rings\":[");
+            for (int i = 0; i < org->count && pos < (int)out_sz - 256; i++) {
+                if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                csos_membrane_t *m = org->membranes[i];
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"name\":\"%s\",\"atoms\":%d,\"mitchell_n\":%d,"
+                    "\"rw\":%.4f,\"gradient\":%.1f}",
+                    m->name, m->atom_count, m->mitchell_n, m->rw, m->gradient);
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "],");
+            /* Mermaid spec if provided */
+            if (ir_spec[0]) {
+                pos += snprintf(json_out + pos, out_sz - pos, "\"mermaid\":\"%.*s\",", 2000, ir_spec);
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "\"foundation_atoms\":5,\"ring_count\":%d}", org->count);
+        }
+
+        /* ── COMPILE LAYER: Code view reads this ── */
+        if (strcmp(ir_detail, "full") == 0 || strcmp(ir_detail, "compile") == 0) {
+            if (strcmp(ir_detail, "full") == 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+            pos += snprintf(json_out + pos, out_sz - pos, "\"compile\":{");
+            /* Per-atom compile info */
+            pos += snprintf(json_out + pos, out_sz - pos, "\"formulas\":[");
+            if (d) {
+                for (int i = 0; i < d->atom_count && pos < (int)out_sz - 512; i++) {
+                    if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                    pos += snprintf(json_out + pos, out_sz - pos,
+                        "{\"atom\":\"%s\",\"compute\":\"%s\",\"params\":[",
+                        d->atoms[i].name, d->atoms[i].compute);
+                    for (int j = 0; j < d->atoms[i].param_count && pos < (int)out_sz - 128; j++) {
+                        if (j > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                        double pv = d->atoms[i].params[j];
+                        if (pv != pv) pv = 0; /* Guard NaN */
+                        pos += snprintf(json_out + pos, out_sz - pos,
+                            "{\"key\":\"%s\",\"value\":%.6f}",
+                            d->atoms[i].param_keys[j], pv);
+                    }
+                    pos += snprintf(json_out + pos, out_sz - pos, "]}");
+                }
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "],");
+            /* JIT state */
+            int jit_on = 0, jit_atoms = 0;
+#ifdef CSOS_HAS_LLVM
+            jit_on = csos_jit_active();
+            jit_atoms = csos_jit_atom_count();
+#endif
+            pos += snprintf(json_out + pos, out_sz - pos,
+                "\"jit\":{\"enabled\":%s,\"compiled_atoms\":%d,\"opt_level\":\"O2\"},",
+                jit_on ? "true" : "false", jit_atoms);
+            /* Constants from membrane.h */
+            pos += snprintf(json_out + pos, out_sz - pos,
+                "\"constants\":{\"boyer_threshold\":%.3f,\"motor_growth\":%.3f,"
+                "\"motor_decay\":%.3f,\"calvin_freq\":%d,\"forster_exp\":%d,"
+                "\"default_rw\":%.4f,\"error_guard\":%.4f}}",
+                CSOS_BOYER_THRESHOLD, CSOS_MOTOR_GROWTH, CSOS_MOTOR_DECAY,
+                CSOS_CALVIN_FREQUENCY, CSOS_FORSTER_EXPONENT,
+                CSOS_DEFAULT_RW, CSOS_ERROR_DENOM_GUARD);
+        }
+
+        /* ── RUNTIME LAYER: Exec view reads this ── */
+        if (strcmp(ir_detail, "full") == 0 || strcmp(ir_detail, "runtime") == 0) {
+            if (strcmp(ir_detail, "full") == 0 || strcmp(ir_detail, "compile") == 0)
+                pos += snprintf(json_out + pos, out_sz - pos, ",");
+            pos += snprintf(json_out + pos, out_sz - pos, "\"runtime\":{");
+            /* Per-ring physics state */
+            pos += snprintf(json_out + pos, out_sz - pos, "\"rings\":[");
+            for (int i = 0; i < org->count && pos < (int)out_sz - 512; i++) {
+                csos_membrane_t *m = org->membranes[i];
+                if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"name\":\"%s\",\"gradient\":%.1f,\"speed\":%.6f,"
+                    "\"F\":%.6f,\"rw\":%.6f,\"action_ratio\":%.6f,"
+                    "\"decision\":\"%s\",\"mode\":\"%s\","
+                    "\"cycles\":%u,\"motor_count\":%d,"
+                    "\"mitchell_n\":%d,\"rdma\":%s,"
+                    "\"couplings\":%d}",
+                    m->name, m->gradient, m->speed, m->F, m->rw, m->action_ratio,
+                    (const char*[]){"EXPLORE","EXECUTE","ASK","STORE"}[m->decision & 3],
+                    m->mode == MODE_BUILD ? "build" : "plan",
+                    m->cycles, m->motor_count, m->mitchell_n,
+                    m->rdma_enabled ? "true" : "false",
+                    m->coupling_count);
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "],");
+            /* Motor memory top entries */
+            pos += snprintf(json_out + pos, out_sz - pos, "\"motor_top\":[");
+            if (o) {
+                uint32_t mh[10]; double ms[10];
+                int mn = csos_motor_top(o, mh, ms, 10);
+                for (int i = 0; i < mn && pos < (int)out_sz - 128; i++) {
+                    if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                    pos += snprintf(json_out + pos, out_sz - pos,
+                        "{\"hash\":%u,\"strength\":%.3f}", mh[i], ms[i]);
+                }
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "],");
+            /* RDMA endpoints */
+            pos += snprintf(json_out + pos, out_sz - pos, "\"rdma\":{\"enabled\":");
+            int rdma_any = 0;
+            for (int i = 0; i < org->count; i++)
+                if (org->membranes[i]->rdma_enabled) rdma_any = 1;
+            pos += snprintf(json_out + pos, out_sz - pos,
+                "%s,\"endpoints\":[", rdma_any ? "true" : "false");
+            int rdma_first = 1;
+            for (int i = 0; i < org->count && pos < (int)out_sz - 256; i++) {
+                csos_membrane_t *m = org->membranes[i];
+                if (!m->rdma_enabled) continue;
+                if (!rdma_first) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"ring\":\"%s\",\"rkey\":%u,\"addr\":%llu}",
+                    m->name, m->rdma_rkey, (unsigned long long)m->rdma_remote_addr);
+                rdma_first = 0;
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "]}}");
+        }
+
+        pos += snprintf(json_out + pos, out_sz - pos, "}}");
+        return 0;
+    }
+
+    /* ═══ RDMA: Enable remote direct memory access for cross-node coupling ═══ */
+    if (strcmp(action, "rdma") == 0) {
+        char subaction[64] = {0};
+        json_str(json_in, "sub", subaction, sizeof(subaction));
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+
+        if (strcmp(subaction, "register") == 0) {
+            csos_membrane_t *m = ring_name[0] ?
+                csos_organism_find(org, ring_name) : _o;
+            if (!m) {
+                snprintf(json_out, out_sz, "{\"error\":\"ring not found\"}");
+                return -1;
+            }
+            csos_membrane_rdma_register(m);
+            snprintf(json_out, out_sz,
+                "{\"rdma_registered\":\"%s\",\"rkey\":%u,\"addr\":%llu}",
+                m->name, m->rdma_rkey, (unsigned long long)m->rdma_remote_addr);
+            return 0;
+        }
+
+        if (strcmp(subaction, "diffuse") == 0) {
+            char remote_ring[128] = {0}, node_str[32] = {0};
+            json_str(json_in, "remote_ring", remote_ring, sizeof(remote_ring));
+            json_str(json_in, "node", node_str, sizeof(node_str));
+            uint32_t node_id = node_str[0] ? (uint32_t)strtoul(node_str, NULL, 10) : 0;
+
+            csos_membrane_t *m = ring_name[0] ?
+                csos_organism_find(org, ring_name) : _o;
+            if (!m || !remote_ring[0]) {
+                snprintf(json_out, out_sz, "{\"error\":\"ring and remote_ring required\"}");
+                return -1;
+            }
+            int result = csos_membrane_rdma_diffuse(m, remote_ring, node_id);
+            snprintf(json_out, out_sz,
+                "{\"rdma_diffuse\":\"%s\",\"remote\":\"%s\",\"node\":%u,"
+                "\"transferred\":%d,\"coupling_count\":%d}",
+                m->name, remote_ring, node_id, result, m->coupling_count);
+            return 0;
+        }
+
+        if (strcmp(subaction, "status") == 0) {
+            int pos = snprintf(json_out, out_sz, "{\"rdma_status\":[");
+            for (int i = 0; i < org->count && pos < (int)out_sz - 256; i++) {
+                csos_membrane_t *m = org->membranes[i];
+                if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"ring\":\"%s\",\"enabled\":%s,\"rkey\":%u,"
+                    "\"couplings\":%d}",
+                    m->name, m->rdma_enabled ? "true" : "false",
+                    m->rdma_rkey, m->coupling_count);
+            }
+            snprintf(json_out + pos, out_sz - pos, "]}");
+            return 0;
+        }
+
+        snprintf(json_out, out_sz, "{\"error\":\"unknown rdma sub: %s (use register/diffuse/status)\"}", subaction);
+        return -1;
+    }
+
     /* ═══ COMPACT: Self-healing bloat removal (the system drives the change) ═══ */
     /*
      * This action enforces the Universal IR constraint across the entire tree:
@@ -2395,15 +2619,28 @@ static size_t _canvas_cache_len = 0;
 
 static void http_send_canvas(int fd) {
     if (!_canvas_cache) {
+        /* Try canvas file first (optional) */
         FILE *f = fopen(".canvas-tui/index.html", "r");
-        if (!f) { http_send(fd, 404, "text/plain", "not found", 9); return; }
-        fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
-        _canvas_cache = (char *)malloc(sz + 1);
-        _canvas_cache_len = fread(_canvas_cache, 1, sz, f);
-        _canvas_cache[_canvas_cache_len] = 0;
-        fclose(f);
+        if (f) {
+            fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
+            _canvas_cache = (char *)malloc(sz + 1);
+            _canvas_cache_len = fread(_canvas_cache, 1, sz, f);
+            _canvas_cache[_canvas_cache_len] = 0;
+            fclose(f);
+        } else {
+            /* No canvas — serve API status page */
+            const char *status =
+                "{\"csos\":true,\"api\":\"/api/command\",\"sse\":\"/events\","
+                "\"usage\":\"POST /api/command with JSON body\","
+                "\"agent\":\"Use OpenCode with csos-core tool\"}";
+            _canvas_cache = strdup(status);
+            _canvas_cache_len = strlen(_canvas_cache);
+            http_send(fd, 200, "application/json", _canvas_cache, _canvas_cache_len);
+            return;
+        }
     }
-    http_send(fd, 200, "text/html; charset=utf-8", _canvas_cache, _canvas_cache_len);
+    http_send(fd, 200, _canvas_cache[0] == '{' ? "application/json" : "text/html; charset=utf-8",
+              _canvas_cache, _canvas_cache_len);
 }
 
 static void http_send_file(int fd, const char *path, const char *ctype) {

@@ -12,4 +12,6 @@
   "": ""
 ,
   "skill:market_spy:check": "curl -s alpha-vantage.co/query?symbol=SPY"
+,
+  "": ""
 }

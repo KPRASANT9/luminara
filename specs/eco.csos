@@ -65,17 +65,75 @@ atom boyer {
 ring eco_domain {
     atoms: [gouterman, forster, marcus, mitchell, boyer];
     purpose: "All substrate signals. Calvin atoms grow per substrate.";
+    // Mitchell n=1: raw signal accumulation (single proton per signal)
+    // Highest specificity: each signal contributes ΔG = 1·F·Δψ
+    mitchell_n: 1;
 }
 
 ring eco_cockpit {
     atoms: [gouterman, forster, marcus, mitchell, boyer];
     purpose: "Agent performance. Wisdom signals, not telemetry.";
     metrics: [specificity_delta, action_ratio, calvin_rate, boundary_crossings];
+    // Mitchell n=2: meta-signal accumulation (2 protons per meta-signal)
+    // Medium specificity: cockpit signals carry more weight per event
+    mitchell_n: 2;
 }
 
 ring eco_organism {
     atoms: [gouterman, forster, marcus, mitchell, boyer];
     purpose: "Integration layer. speed > rw triggers Boyer EXECUTE decision.";
+    // Mitchell n=3: integration layer (3 protons = full ATP synthesis cycle)
+    // Boyer: ATP = flux·n/3 → at n=3, one ATP per integration event
+    // Lowest specificity: organism integrates broadly to make decisions
+    mitchell_n: 3;
+}
+
+// ═══ COMPILE DIRECTIVES ═══
+
+compile {
+    jit: auto;                    // auto | force | disable
+    opt_level: O2;                // O0 | O1 | O2 | O3
+    target: native;               // native | wasm | arm64
+    vectorize: true;              // SIMD vectorization of absorb loop
+    inline_motor: true;           // Inline motor_find in hot path
+    photon_ring_size: 512;        // Per-atom ring buffer (power of 2)
+    page_size: 4096;              // RDMA-aligned page size
+}
+
+// ═══ RDMA ENDPOINTS ═══
+
+rdma {
+    enabled: auto;                // auto | force | disable
+    transport: tcp_fallback;      // rdma_verbs | tcp_fallback | shared_memory
+    base_port: 4200;              // HTTP daemon base port
+    photon_ring_registered: true; // Register photon ring for zero-copy access
+    coupling_tensor_shared: true; // Share coupling tensor across nodes
+}
+
+// ═══ VIEW BINDINGS ═══
+
+view visual {
+    agent: csos-visual;
+    ir_layer: spec;
+    renders: [mermaid, atom_table, ring_config];
+    editable: [nodes, edges, labels, spectral];
+    commands: [synthesize, draft, versions, restore];
+}
+
+view code {
+    agent: csos-codegen;
+    ir_layer: compile;
+    renders: [formula_editor, param_table, jit_status, constants];
+    editable: [params, commands, env, timeout];
+    commands: [configure, ir, complete];
+}
+
+view exec {
+    agent: csos-runtime;
+    ir_layer: runtime;
+    renders: [exec_dashboard, rdma_topology, motor_heatmap, progress];
+    editable: [];
+    commands: [run, run_step, rdma, cluster, diagnose];
 }
 
 // ═══ AGENTS (2 modes + cross-living) ═══

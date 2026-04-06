@@ -194,10 +194,19 @@ int csos_spec_parse(const char *path, csos_spec_t *spec) {
             }
         }
 
-        /* Inside ring block */
-        if (in_ring && strchr(line, '}') && brace_depth <= 0) {
-            in_ring = 0;
-            brace_depth = 0;
+        /* Inside ring block — parse ring-level parameters */
+        if (in_ring) {
+            /* Mitchell n: proton count per ring (ΔG = -n·F·Δψ) */
+            char *mn = strstr(line, "mitchell_n:");
+            if (mn && spec->ring_count > 0) {
+                mn += 11; /* skip "mitchell_n:" */
+                while (*mn == ' ' || *mn == '\t') mn++;
+                spec->ring_mitchell_n[spec->ring_count - 1] = (int)strtol(mn, NULL, 10);
+            }
+            if (strchr(line, '}') && brace_depth <= 0) {
+                in_ring = 0;
+                brace_depth = 0;
+            }
         }
     }
 
@@ -625,6 +634,9 @@ csos_membrane_t *csos_membrane_from_spec(const csos_spec_t *spec, int ring_index
 
     strncpy(m->name, spec->ring_names[ring_index], CSOS_NAME_LEN - 1);
     m->human_present = 1;
+    /* Mitchell n from spec (default 1 if not specified) */
+    m->mitchell_n = spec->ring_mitchell_n[ring_index];
+    if (m->mitchell_n < 1) m->mitchell_n = 1;
 
     /* Initialize atoms from spec (foundation + Calvin) */
     int count = 0;

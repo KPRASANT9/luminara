@@ -1,1 +1,1 @@
-{"test_wf":{"fetch":{"command":"echo hello","env":"","timeout":30}},"pipe1":{"fetch":{"command":"echo configured_ok","env":"","timeout":30}}}
+{"etl_secure":{"parse":{"command":"echo {"parsed":true}","env":"","timeout":5}}}

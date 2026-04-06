@@ -1,0 +1,18 @@
+{
+  "substrate": "",
+  "decision": "EXECUTE",
+  "insight": "",
+  "evidence": {
+    "gradient": 48308,
+    "speed": 8051.333,
+    "rw": 0.833,
+    "motor_strength": 0.100,
+    "delta": 20
+  },
+  "rings": {
+    "domain": { "grad": 33633, "speed": 1681.650, "F": 0.0100 },
+    "cockpit": { "grad": 86085, "speed": 2690.156 },
+    "organism": { "grad": 48308, "speed": 8051.333 }
+  },
+  "cycle": 10616
+}

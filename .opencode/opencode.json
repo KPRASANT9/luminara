@@ -15,15 +15,29 @@
   },
   "agent": {
     "csos-living": {
-      "description": "The living equation. ONE agent reads physics and acts.",
+      "description": "The living equation. ONE agent reads physics and acts. Routes to view agents.",
       "mode": "primary",
       "prompt": "{file:agents/csos-living.md}"
+    },
+    "csos-visual": {
+      "description": "Spec layer editor. Visual toggle. Atoms, Mermaid DAGs, edges.",
+      "mode": "subagent",
+      "prompt": "{file:agents/csos-visual.md}"
+    },
+    "csos-codegen": {
+      "description": "Compile layer editor. Code toggle. Formulas, params, JIT state.",
+      "mode": "subagent",
+      "prompt": "{file:agents/csos-codegen.md}"
+    },
+    "csos-runtime": {
+      "description": "Runtime executor. Exec toggle. Physics, motor, RDMA, workflow execution.",
+      "mode": "subagent",
+      "prompt": "{file:agents/csos-runtime.md}"
     }
   },
   "permission": {
     "bash": { "csos-exec": "allow", "*": "deny" },
     "csos-core": "allow",
-    "csos-canvas": "allow",
     "skill": "allow",
     "glob": "allow",
     "grep": "allow",

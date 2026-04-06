@@ -36,6 +36,7 @@
 #define CSOS_FHIST_LEN       1024
 #define CSOS_CO2_POOL_SIZE   256
 #define CSOS_PHOTON_RING     8192
+#define CSOS_ATOM_PHOTON_RING  512   /* Per-atom photon ring (power of 2 for mask) */
 
 /* ═══ PHYSICS CONSTANTS (derived from the 5 equations — never hardwire) ═══ */
 
@@ -210,17 +211,23 @@ typedef struct {
     int       broadband;        /* 1 = absorbs across full spectrum */
     double    rw;               /* Precomputed resonance_width */
 
-    /* Photon history (evidence this atom has accumulated) */
-    csos_photon_t *photons;
-    int       photon_count;
-    int       photon_cap;
-    csos_photon_t *local_photons;
+    /* Photon history — fixed ring buffer, zero allocations on hot path */
+    csos_photon_t *photons;       /* Ring buffer [CSOS_ATOM_PHOTON_RING] */
+    int       photon_count;       /* Total photons ever seen (not ring size) */
+    int       photon_head;        /* Next write position in ring */
+    int       photon_cap;         /* Ring capacity (CSOS_ATOM_PHOTON_RING) */
+    csos_photon_t *local_photons; /* Local ring buffer */
     int       local_count;
+    int       local_head;
     int       local_cap;
 
     /* Prediction state */
     int       has_pending;
     double    pending_value;
+
+    /* Cached last-resonated value — avoids O(n) backward scan per absorb */
+    double    last_resonated_value;
+    int       has_resonated;
 } csos_atom_t;
 
 /* ═══ MOTOR ENTRY (muscle memory for one substrate) ═══ */
@@ -262,6 +269,12 @@ typedef struct {
     uint8_t   decision;         /* csos_decision_t */
     int       consecutive_zero_delta;
     int       human_present;
+
+    /* Mitchell proton count (n): loaded from spec ring definition.
+     * Controls gradient accumulation rate: ΔG = -n·F·Δψ + 2.3RT·ΔpH.
+     * Higher n = more gradient per resonated signal = faster to Boyer gate.
+     * Default 1. Spec overrides via mitchell_n per ring. */
+    int       mitchell_n;
 
     /* Calvin CO2 pool (non-resonated actuals waiting for synthesis) */
     double    co2[CSOS_CO2_POOL_SIZE];
@@ -356,6 +369,7 @@ typedef struct {
     csos_spec_atom_t atoms[CSOS_MAX_ATOMS];
     int              atom_count;
     char             ring_names[CSOS_MAX_RINGS][CSOS_NAME_LEN];
+    int              ring_mitchell_n[CSOS_MAX_RINGS]; /* Mitchell n per ring (from spec) */
     int              ring_count;
 } csos_spec_t;
 

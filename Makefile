@@ -30,12 +30,19 @@ else
   LDFLAGS  = -lm
 endif
 
+# ═══ RDMA detection ═══
+HAS_RDMA := $(shell pkg-config --exists libibverbs 2>/dev/null && echo yes || echo no)
+ifeq ($(HAS_RDMA),yes)
+  CFLAGS  += -DCSOS_HAS_RDMA=1 $(shell pkg-config --cflags libibverbs)
+  LDFLAGS += $(shell pkg-config --libs libibverbs)
+endif
+
 BIN      = csos
 SPEC     = specs/eco.csos
 SRC      = src/native/csos.c
 HEADERS  = lib/membrane.h lib/page.h lib/record.h lib/ring.h
 
-.PHONY: all nojit clean test bench validate hooks http seed
+.PHONY: all nojit clean test bench validate hooks http seed pgo-gen pgo-use wasm arm64 rdma-test ir full
 
 all: $(BIN)
 
@@ -93,6 +100,55 @@ seed: $(BIN)
 
 http: $(BIN)
 	./$(BIN) --http 4200
+
+# ═══ PROFILE-GUIDED BUILD ═══
+pgo-gen: clean
+	$(CC) $(CFLAGS) -fprofile-generate -Ilib -Isrc/native -o $(BIN) $(SRC) $(LDFLAGS)
+	@echo "Built with PGO instrumentation. Run workload, then: make pgo-use"
+
+pgo-use:
+	$(CC) $(CFLAGS) -fprofile-use -Ilib -Isrc/native -o $(BIN) $(SRC) $(LDFLAGS)
+	@echo "Built with PGO optimization."
+
+# ═══ MULTI-TARGET ═══
+wasm:
+	emcc -O2 -std=c11 -Ilib -Isrc/native -o csos.wasm $(SRC) -s EXPORTED_FUNCTIONS='["_csos_handle"]' -s MODULARIZE=1
+	@echo "Built: csos.wasm (WebAssembly target)"
+
+arm64:
+	$(CC) $(CFLAGS) -target arm64-apple-macos11 -Ilib -Isrc/native -o csos-arm64 $(SRC) $(LDFLAGS)
+	@echo "Built: csos-arm64"
+
+# ═══ RDMA ═══
+rdma-test: $(BIN)
+	@echo "=== RDMA Status ==="
+	@echo '{"action":"rdma","sub":"status"}' | ./$(BIN) 2>/dev/null | grep "^{" | python3 -m json.tool 2>/dev/null || echo '{"rdma":"not available"}'
+
+# ═══ IR INSPECT ═══
+ir: $(BIN)
+	@echo '{"action":"ir","detail":"full"}' | ./$(BIN) 2>/dev/null | grep "^{" | tail -1 | python3 -m json.tool 2>/dev/null || echo '{"error":"binary not running"}'
+
+# ═══ ALL-IN-ONE ═══
+full: $(BIN) test validate
+	@echo ""
+	@echo "=== FULL BUILD COMPLETE ==="
+	@echo "  Binary:     ./$(BIN)"
+	@echo "  Tests:      PASSED"
+	@echo "  Validation: PASSED"
+ifeq ($(HAS_LLVM),yes)
+	@echo "  JIT:        LLVM $(shell $(LLVM_CONFIG) --version)"
+else
+	@echo "  JIT:        disabled (no LLVM)"
+endif
+ifeq ($(HAS_RDMA),yes)
+	@echo "  RDMA:       enabled"
+else
+	@echo "  RDMA:       tcp_fallback"
+endif
+	@echo "  Modes:      Visual | Code | Exec"
+	@echo "  Agents:     @csos-living → @csos-visual | @csos-codegen | @csos-runtime"
+	@echo "  IR:         make ir"
+	@echo "  HTTP:       make http"
 
 # ═══ GIT HOOKS ═══
 hooks:
