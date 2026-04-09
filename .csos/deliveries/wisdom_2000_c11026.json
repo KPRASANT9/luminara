@@ -1,0 +1,18 @@
+{
+  "substrate": "",
+  "decision": "EXECUTE",
+  "insight": "# Autonomous Enterprise Operations — CSOS Agentic Systemn## +14.5 pts — 3 Use Cases with Interactive CLInn---nn## Why #1nnAgentic benchmarks (AgentBench +20, OSWorld +14, Terminal-Bench +20) show ",
+  "evidence": {
+    "gradient": 53264,
+    "speed": 1479.556,
+    "rw": 0.851,
+    "motor_strength": 0.268,
+    "delta": 6
+  },
+  "rings": {
+    "domain": { "grad": 39274, "speed": 20.935, "F": 88.5345 },
+    "cockpit": { "grad": 105861, "speed": 551.359 },
+    "organism": { "grad": 53264, "speed": 1479.556 }
+  },
+  "cycle": 11026
+}

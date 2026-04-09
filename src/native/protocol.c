@@ -167,19 +167,24 @@ static int photon_to_json(const csos_photon_t *ph, const csos_membrane_t *d,
         "\"motor_strength\":%.3f,"
         "\"interval\":%llu,"
         "\"resonated\":%s,"
+        "\"vitality\":%.6f,"
         "\"mode\":\"%s\","
-        "\"domain\":{\"grad\":%.0f,\"speed\":%.3f,\"F\":%.4f},"
-        "\"cockpit\":{\"grad\":%.0f,\"speed\":%.3f},"
-        "\"organism\":{\"grad\":%.0f,\"speed\":%.3f,\"rw\":%.3f}}",
+        "\"domain\":{\"grad\":%.0f,\"speed\":%.3f,\"F\":%.4f,\"vitality\":%.4f},"
+        "\"cockpit\":{\"grad\":%.0f,\"speed\":%.3f,\"vitality\":%.4f},"
+        "\"organism\":{\"grad\":%.0f,\"speed\":%.3f,\"rw\":%.3f,\"vitality\":%.4f}}",
         dec[ph->decision & 3],
         ph->delta,
         ph->motor_strength,
         (unsigned long long)ph->interval,
         ph->resonated ? "true" : "false",
+        ph->vitality,
         o && o->mode == MODE_BUILD ? "build" : "plan",
         d ? d->gradient : 0, d ? d->speed : 0, d ? d->F : 0,
+        d ? d->equation.vitality : 0,
         k ? k->gradient : 0, k ? k->speed : 0,
-        o ? o->gradient : 0, o ? o->speed : 0, o ? o->rw : 0);
+        k ? k->equation.vitality : 0,
+        o ? o->gradient : 0, o ? o->speed : 0, o ? o->rw : 0,
+        o ? o->equation.vitality : 0);
 }
 
 /* ═══ REQUEST HANDLER (all protocols route here) ═══ */
@@ -357,6 +362,502 @@ int csos_handle(csos_organism_t *org, const char *json_in,
             }
         }
         snprintf(json_out + pos, out_sz - pos, "}}");
+        return 0;
+    }
+
+    /* ═══ RECOMMEND: Physics-driven accuracy recommendations ═══
+     *
+     * Canvas is READ-ONLY. It does not execute commands.
+     * Instead it calls recommend to get physics-driven suggestions
+     * that tell the agent what would make the system more accurate.
+     *
+     * Each recommendation is derived directly from the 5 equations:
+     *   Gouterman → signal diversity (are we absorbing the right light?)
+     *   Marcus → error correction (are predictions converging?)
+     *   Mitchell → gradient health (is evidence accumulating?)
+     *   Boyer → decision clarity (can we act with confidence?)
+     *   Forster → cross-pollination (are sessions learning from each other?)
+     */
+    if (strcmp(action, "recommend") == 0) {
+        int pos = snprintf(json_out, out_sz, "{\"recommendations\":[");
+        int count = 0;
+
+        /* Analyze each ecosystem ring */
+        const struct { csos_membrane_t *m; const char *name; } eco[] = {
+            {_d, "Domain"}, {_k, "Cockpit"}, {_o, "Organism"}
+        };
+        for (int i = 0; i < 3; i++) {
+            csos_membrane_t *m = eco[i].m;
+            if (!m) continue;
+            const csos_equation_t *eq = &m->equation;
+
+            /* Gouterman low → feed more diverse signals */
+            if (eq->gouterman < 0.3 && count < 10) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"critical\",\"equation\":\"gouterman\","
+                    "\"title\":\"%s: Signal diversity too low (%.0f%%)\","
+                    "\"detail\":\"Atoms are not resonating. Feed varied signals to different substrates.\","
+                    "\"action\":\"@csos-operator: bind sessions to diverse ingress sources\"}",
+                    eco[i].name, eq->gouterman * 100);
+                count++;
+            }
+
+            /* Marcus high error → predictions inaccurate */
+            if (eq->marcus < 0.5 && m->F > 5.0 && count < 10) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"warning\",\"equation\":\"marcus\","
+                    "\"title\":\"%s: Prediction error high (F=%.1f)\","
+                    "\"detail\":\"Marcus barrier is steep. Absorb more consistent signals to reduce prediction error.\","
+                    "\"action\":\"@csos-operator: increase tick frequency on active sessions\"}",
+                    eco[i].name, m->F);
+                count++;
+            }
+
+            /* Mitchell low → gradient not building */
+            if (eq->mitchell < 0.3 && count < 10) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"warning\",\"equation\":\"mitchell\","
+                    "\"title\":\"%s: Gradient stagnant (%.0f%%)\","
+                    "\"detail\":\"Life force not accumulating. Check ingress is producing real signals.\","
+                    "\"action\":\"@csos-observer: diagnose ingress health for bound sessions\"}",
+                    eco[i].name, eq->mitchell * 100);
+                count++;
+            }
+
+            /* Boyer stuck → not enough evidence */
+            if (eq->boyer < 0.5 && m->speed < m->rw && count < 10) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"info\",\"equation\":\"boyer\","
+                    "\"title\":\"%s: Decision gate closed (speed=%.1f < rw=%.3f)\","
+                    "\"detail\":\"Not enough evidence to act. Continue absorbing signals.\","
+                    "\"action\":\"@csos-operator: tick sessions or increase signal volume\"}",
+                    eco[i].name, m->speed, m->rw);
+                count++;
+            }
+
+            /* Forster weak → sessions isolated */
+            if (eq->forster < 0.3 && count < 10) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"info\",\"equation\":\"forster\","
+                    "\"title\":\"%s: Cross-pollination weak (%.0f%%)\","
+                    "\"detail\":\"Sessions are isolated. Forster coupling needs overlapping substrates.\","
+                    "\"action\":\"@csos-analyst: check convergence and recommend merges\"}",
+                    eco[i].name, eq->forster * 100);
+                count++;
+            }
+        }
+
+        /* Session-level recommendations */
+        for (int i = 0; i < org->session_count && count < 10; i++) {
+            const csos_session_t *s = &org->sessions[i];
+
+            /* Unbound sessions */
+            if (!s->ingress.type[0] && s->stage <= SESSION_SEED) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"warning\",\"equation\":\"session\","
+                    "\"title\":\"Session '%s' has no ingress\","
+                    "\"detail\":\"Living equation is unbound. It cannot absorb signals from the outside world.\","
+                    "\"action\":\"@csos-operator: session=bind id=%s with ingress_type and ingress_source\"}",
+                    s->id, s->id);
+                count++;
+            }
+
+            /* Stuck dormant with schedule */
+            if (s->stage == SESSION_DORMANT && s->schedule.autonomous &&
+                s->vitality < 0.1 && count < 10) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"warning\",\"equation\":\"session\","
+                    "\"title\":\"Session '%s' dormant with zero vitality\","
+                    "\"detail\":\"Scheduled but not producing. Ingress may be failing or returning empty data.\","
+                    "\"action\":\"@csos-observer: session=observe id=%s to diagnose\"}",
+                    s->id, s->id);
+                count++;
+            }
+
+            /* Bloom ready for harvest */
+            if (s->stage == SESSION_BLOOM && count < 10) {
+                if (count > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"severity\":\"success\",\"equation\":\"boyer\","
+                    "\"title\":\"Session '%s' ready to deliver (BLOOM)\","
+                    "\"detail\":\"Boyer says EXECUTE. Enough evidence accumulated. Harvest the results.\","
+                    "\"action\":\"@csos-operator: deliver from %s or let egress fire automatically\"}",
+                    s->id, s->id);
+                count++;
+            }
+        }
+
+        if (count == 0) {
+            pos += snprintf(json_out + pos, out_sz - pos,
+                "{\"severity\":\"success\",\"equation\":\"vitality\","
+                "\"title\":\"System healthy\","
+                "\"detail\":\"All 5 equations balanced. Organism vitality optimal.\","
+                "\"action\":\"\"}");
+        }
+
+        snprintf(json_out + pos, out_sz - pos, "]}");
+        return 0;
+    }
+
+    /* ═══ EVENTS: Shared log between agent and canvas ═══ */
+    if (strcmp(action, "events") == 0) {
+        char sub[32] = {0}, msg[256] = {0}, sess[64] = {0};
+        json_str(json_in, "sub", sub, sizeof(sub));
+        if (strcmp(sub, "log") == 0) {
+            /* Agent or Canvas logging an event */
+            char src[32] = {0};
+            json_str(json_in, "source", src, sizeof(src));
+            json_str(json_in, "session", sess, sizeof(sess));
+            json_str(json_in, "message", msg, sizeof(msg));
+            csos_event_log(org, EVT_AGENT_ACTION,
+                           src[0] ? src : "agent", sess, msg, 0);
+            snprintf(json_out, out_sz, "{\"logged\":true}");
+        } else {
+            /* Default: list recent events */
+            csos_event_list(org, json_out, out_sz);
+        }
+        return 0;
+    }
+
+    /* ═══ INTERACT: Canvas reflexive loop ═══
+     *
+     * In photosynthesis, light-harvesting complexes don't just absorb sunlight —
+     * they absorb the ATTENTION of the photon. Where light falls, energy flows.
+     *
+     * Canvas user attention is the same: when the human clicks a ring, selects a
+     * session, hovers over an equation, or types a query — that IS a signal.
+     * It absorbs into eco_cockpit as "human attention photons".
+     *
+     * This creates the REFLEXIVE LOOP:
+     *   Canvas interaction → eco_cockpit absorption → cockpit gradient shifts
+     *   → agents read cockpit → agents know what matters to the human
+     *   → agent actions → SSE → canvas updates
+     *
+     * No separate "focus" channel. No polling. The gradient IS the communication.
+     */
+    if (strcmp(action, "interact") == 0) {
+        char itype[32] = {0}, target[128] = {0}, sess_id[CSOS_NAME_LEN] = {0};
+        json_str(json_in, "type", itype, sizeof(itype));
+        json_str(json_in, "target", target, sizeof(target));
+        json_str(json_in, "session", sess_id, sizeof(sess_id));
+
+        /* Compute attention signal: type determines weight */
+        double weight = 1.0;  /* default: passive attention (hover, view) */
+        if (strcmp(itype, "select") == 0)    weight = 5.0;   /* focused attention */
+        if (strcmp(itype, "command") == 0)    weight = 10.0;  /* active engagement */
+        if (strcmp(itype, "query") == 0)      weight = 15.0;  /* deliberate inquiry */
+        if (strcmp(itype, "operate") == 0)    weight = 20.0;  /* direct action */
+
+        /* Absorb into cockpit — the human attention ring */
+        if (_k) {
+            uint32_t target_hash = 0;
+            for (int i = 0; target[i]; i++) target_hash = target_hash * 31 + (unsigned char)target[i];
+            csos_photon_t ph = csos_membrane_absorb(_k, weight, target_hash, PROTO_STDIO);
+
+            /* If session context, also absorb into that session's substrate */
+            if (sess_id[0]) {
+                csos_session_t *s = csos_session_find(org, sess_id);
+                if (s && _d) {
+                    csos_membrane_absorb(_d, weight * 0.5, s->substrate_hash, PROTO_STDIO);
+                }
+            }
+
+            /* Log as canvas event */
+            char emsg[CSOS_EVENT_MSG_LEN];
+            snprintf(emsg, sizeof(emsg), "canvas:%s target=%s", itype, target);
+            csos_event_log(org, EVT_CANVAS_ACTION, "canvas", sess_id, emsg, 0);
+
+            snprintf(json_out, out_sz,
+                "{\"absorbed\":true,\"type\":\"%s\",\"target\":\"%s\","
+                "\"cockpit_gradient\":%.0f,\"cockpit_speed\":%.3f,"
+                "\"delta\":%d,\"motor_strength\":%.3f}",
+                itype, target, _k->gradient, _k->speed,
+                ph.delta, ph.motor_strength);
+        } else {
+            snprintf(json_out, out_sz, "{\"absorbed\":false,\"error\":\"cockpit not found\"}");
+        }
+        return 0;
+    }
+
+    /* ═══ MSG: Agent ↔ Canvas message channel ═══ */
+    if (strcmp(action, "msg") == 0) {
+        char sub[32] = {0}, from[32] = {0}, to[32] = {0};
+        char body[1024] = {0}, sess[64] = {0};
+        json_str(json_in, "sub", sub, sizeof(sub));
+
+        if (strcmp(sub, "send") == 0) {
+            json_str(json_in, "from", from, sizeof(from));
+            json_str(json_in, "to", to, sizeof(to));
+            json_str(json_in, "body", body, sizeof(body));
+            json_str(json_in, "session", sess, sizeof(sess));
+            /* Store message */
+            csos_message_t *m = &org->messages[org->msg_head % CSOS_MAX_MESSAGES];
+            m->timestamp = (int64_t)time(NULL);
+            strncpy(m->from, from[0] ? from : "unknown", sizeof(m->from)-1);
+            strncpy(m->to, to[0] ? to : "all", sizeof(m->to)-1);
+            /* Sanitize body for JSON safety */
+            {
+                int bi = 0;
+                for (int i = 0; body[i] && bi < (int)sizeof(m->body)-2; i++) {
+                    unsigned char c = (unsigned char)body[i];
+                    if (c < 32) { if (c == '\n') { m->body[bi++] = ' '; } continue; }
+                    if (c == '"' || c == '\\') { m->body[bi++] = ' '; continue; }
+                    m->body[bi++] = (char)c;
+                }
+                m->body[bi] = 0;
+            }
+            strncpy(m->session, sess, sizeof(m->session)-1);
+            m->read = 0;
+            org->msg_head++;
+            if (org->msg_count < CSOS_MAX_MESSAGES) org->msg_count++;
+            /* Log as event too so SSE broadcasts it */
+            char emsg[256];
+            snprintf(emsg, sizeof(emsg), "[%s→%s] %.*s", m->from, m->to, 180, body);
+            csos_event_log(org, strcmp(from,"agent")==0 ? EVT_AGENT_ACTION : EVT_CANVAS_ACTION,
+                           m->from, sess, emsg, 0);
+
+            /* ═══ REFLEXIVE PROPAGATION ═══
+             * When an agent sends a message, the gradient has changed.
+             * Absorb agent activity as a signal into eco_cockpit.
+             * This means: agent work = energy flowing through the cockpit ring.
+             * Canvas sees it immediately via SSE state broadcast. */
+            if (_k && strcmp(from, "agent") != 0) {
+                /* Canvas→agent messages get absorbed too */
+                csos_membrane_absorb(_k, 8.0, 0, PROTO_STDIO);
+            } else if (_k) {
+                /* Agent responses are stronger signals (productive work) */
+                csos_membrane_absorb(_k, 15.0, 0, PROTO_INTERNAL);
+            }
+
+            /* Include message content in response so SSE broadcast carries it.
+             * Canvas SSE handler detects "msg_broadcast" and renders in chat. */
+            snprintf(json_out, out_sz,
+                "{\"sent\":true,\"id\":%d,\"msg_broadcast\":true,"
+                "\"from\":\"%s\",\"to\":\"%s\",\"body\":\"%.*s\","
+                "\"session\":\"%s\"}",
+                org->msg_head-1, m->from, m->to,
+                (int)(out_sz - 200), m->body, m->session);
+            return 0;
+        }
+
+        /* Read messages for a recipient */
+        if (strcmp(sub, "read") == 0) {
+            json_str(json_in, "for", to, sizeof(to));
+            if (!to[0]) strncpy(to, "agent", sizeof(to));
+            int pos = 0;
+            pos += snprintf(json_out + pos, out_sz - pos, "{\"messages\":[");
+            int count = org->msg_count < CSOS_MAX_MESSAGES ? org->msg_count : CSOS_MAX_MESSAGES;
+            int first = 1;
+            for (int i = 0; i < count && pos < (int)out_sz - 300; i++) {
+                int idx = (org->msg_head - count + i);
+                if (idx < 0) idx += CSOS_MAX_MESSAGES;
+                idx = idx % CSOS_MAX_MESSAGES;
+                csos_message_t *m = &org->messages[idx];
+                if (strcmp(m->to, to) != 0 && strcmp(m->to, "all") != 0) continue;
+                if (!first) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "{\"ts\":%lld,\"from\":\"%s\",\"body\":\"%.*s\","
+                    "\"session\":\"%s\",\"read\":%d}",
+                    (long long)m->timestamp, m->from, 200, m->body,
+                    m->session, m->read);
+                m->read = 1;
+                first = 0;
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, "]}");
+            return 0;
+        }
+
+        snprintf(json_out, out_sz, "{\"error\":\"msg sub: send or read\"}");
+        return -1;
+    }
+
+    /* ═══ EQUATE: The Living Equation — unified vitality view ═══ */
+    if (strcmp(action, "equate") == 0) {
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+        if (ring_name[0]) {
+            /* Single membrane equation */
+            csos_membrane_t *m = csos_organism_find(org, ring_name);
+            if (!m) { snprintf(json_out, out_sz, "{\"error\":\"ring not found\"}"); return -1; }
+            csos_membrane_equate(m, json_out, out_sz);
+        } else {
+            /* Full organism living equation */
+            csos_organism_equate(org, json_out, out_sz);
+        }
+        return 0;
+    }
+
+    /* ═══ SESSION: Living Equation operations ═══ */
+    if (strcmp(action, "session") == 0) {
+        char sub[64] = {0}, sid[CSOS_NAME_LEN] = {0};
+        json_str(json_in, "sub", sub, sizeof(sub));
+        json_str(json_in, "id", sid, sizeof(sid));
+
+        /* session list — all living equations */
+        if (strcmp(sub, "list") == 0 || sub[0] == 0) {
+            csos_session_see_all(org, json_out, out_sz);
+            return 0;
+        }
+
+        /* session observe — detailed view of one session */
+        if (strcmp(sub, "observe") == 0 && sid[0]) {
+            csos_session_t *s = csos_session_find(org, sid);
+            if (!s) { snprintf(json_out, out_sz, "{\"error\":\"session not found\"}"); return -1; }
+            csos_session_observe(s, json_out, out_sz);
+            return 0;
+        }
+
+        /* session spawn — create new living equation */
+        if (strcmp(sub, "spawn") == 0 && sid[0]) {
+            char sub_name[CSOS_NAME_LEN] = {0};
+            json_str(json_in, "substrate", sub_name, sizeof(sub_name));
+            csos_session_t *s = csos_session_spawn(org, sid, sub_name[0] ? sub_name : sid);
+            if (!s) { snprintf(json_out, out_sz, "{\"error\":\"max sessions\"}"); return -1; }
+            snprintf(json_out, out_sz,
+                "{\"session\":\"%s\",\"substrate\":\"%s\",\"stage\":\"seed\"}",
+                s->id, s->substrate);
+            return 0;
+        }
+
+        /* session bind — connect to external world (stomata + phloem) */
+        if (strcmp(sub, "bind") == 0 && sid[0]) {
+            csos_session_t *s = csos_session_find(org, sid);
+            if (!s) { snprintf(json_out, out_sz, "{\"error\":\"session not found\"}"); return -1; }
+            char binding[128]={0}, it[16]={0}, is[512]={0}, et[16]={0}, eg[512]={0};
+            json_str(json_in, "binding", binding, sizeof(binding));
+            json_str(json_in, "ingress_type", it, sizeof(it));
+            json_str(json_in, "ingress_source", is, sizeof(is));
+            json_str(json_in, "egress_type", et, sizeof(et));
+            json_str(json_in, "egress_target", eg, sizeof(eg));
+            /* Also support auth and format */
+            char auth[128]={0}, fmt[32]={0};
+            json_str(json_in, "auth", auth, sizeof(auth));
+            json_str(json_in, "format", fmt, sizeof(fmt));
+            csos_session_bind(s, binding, it[0] ? it : NULL, is[0] ? is : NULL,
+                              et[0] ? et : NULL, eg[0] ? eg : NULL);
+            if (auth[0]) strncpy(s->ingress.auth, auth, sizeof(s->ingress.auth)-1);
+            if (fmt[0]) strncpy(s->egress.format, fmt, sizeof(s->egress.format)-1);
+
+            /* ── SYNTHESIS: Auto-infer connection from bind ── */
+            if (binding[0]) {
+                csos_session_track_connection(s, binding, it[0] ? it : "pipe");
+                csos_session_record_flow(s, FLOW_CONNECTION, 0, 1.0, 1,
+                                         s->vitality, s->substrate_hash,
+                                         "bind");
+                csos_session_synthesize(s);
+            }
+
+            snprintf(json_out, out_sz,
+                "{\"session\":\"%s\",\"binding\":\"%s\","
+                "\"ingress\":\"%s:%s\",\"egress\":\"%s:%s\","
+                "\"session_vitality\":%.6f,\"connections\":%d}",
+                s->id, s->binding,
+                s->ingress.type, s->ingress.source,
+                s->egress.type, s->egress.target,
+                s->synthesis.session_vitality, s->connection_count);
+            return 0;
+        }
+
+        /* session schedule — set circadian rhythm */
+        if (strcmp(sub, "schedule") == 0 && sid[0]) {
+            csos_session_t *s = csos_session_find(org, sid);
+            if (!s) { snprintf(json_out, out_sz, "{\"error\":\"session not found\"}"); return -1; }
+            char interval_s[32]={0}, auto_s[16]={0};
+            json_str(json_in, "interval", interval_s, sizeof(interval_s));
+            json_str(json_in, "autonomous", auto_s, sizeof(auto_s));
+            int interval = interval_s[0] ? atoi(interval_s) : 60;
+            int autonomous = auto_s[0] ? (strcmp(auto_s,"true")==0 || atoi(auto_s)) : 1;
+            csos_session_schedule(s, interval, autonomous);
+            snprintf(json_out, out_sz,
+                "{\"session\":\"%s\",\"interval\":%d,\"autonomous\":%s,"
+                "\"next_tick\":%lld}",
+                s->id, s->schedule.interval_secs,
+                s->schedule.autonomous ? "true" : "false",
+                (long long)s->schedule.next_tick);
+            return 0;
+        }
+
+        /* session tick — manually trigger one cycle */
+        if (strcmp(sub, "tick") == 0 && sid[0]) {
+            csos_session_t *s = csos_session_find(org, sid);
+            if (!s) { snprintf(json_out, out_sz, "{\"error\":\"session not found\"}"); return -1; }
+            csos_session_tick(org, s, json_out, out_sz);
+            return 0;
+        }
+
+        /* session tick_all — tick all due sessions now */
+        if (strcmp(sub, "tick_all") == 0) {
+            int ticked = csos_session_tick_all(org);
+            snprintf(json_out, out_sz, "{\"ticked\":%d}", ticked);
+            return 0;
+        }
+
+        /* session synthesize — full synthesis state of one session */
+        if (strcmp(sub, "synthesize") == 0 && sid[0]) {
+            csos_session_t *s = csos_session_find(org, sid);
+            if (!s) { snprintf(json_out, out_sz, "{\"error\":\"session not found\"}"); return -1; }
+            csos_session_synthesize(s);
+            csos_session_synthesize_json(s, json_out, out_sz);
+            return 0;
+        }
+
+        snprintf(json_out, out_sz, "{\"error\":\"unknown session sub: %s\"}", sub);
+        return -1;
+    }
+
+    /* ═══ GREENHOUSE: session lifecycle + seed bank + convergence ═══ */
+    if (strcmp(action, "greenhouse") == 0) {
+        char sub[64] = {0}, sid[CSOS_NAME_LEN] = {0}, sub_name[CSOS_NAME_LEN] = {0};
+        json_str(json_in, "sub", sub, sizeof(sub));
+        json_str(json_in, "session", sid, sizeof(sid));
+        json_str(json_in, "substrate", sub_name, sizeof(sub_name));
+
+        if (strcmp(sub, "spawn") == 0 && sid[0]) {
+            csos_session_t *s = csos_session_spawn(org, sid, sub_name[0] ? sub_name : NULL);
+            if (s) {
+                snprintf(json_out, out_sz,
+                    "{\"session\":\"%s\",\"substrate\":\"%s\",\"stage\":\"seed\","
+                    "\"seeds_planted\":%d}",
+                    s->id, s->substrate, s->seeds_planted);
+            } else {
+                snprintf(json_out, out_sz, "{\"error\":\"max sessions reached\"}");
+            }
+        } else if (strcmp(sub, "harvest") == 0 && sid[0]) {
+            csos_session_t *s = csos_session_find(org, sid);
+            if (s) {
+                int harvested = csos_seed_harvest(org, s);
+                s->seeds_harvested += harvested;
+                s->stage = SESSION_HARVEST;
+                snprintf(json_out, out_sz,
+                    "{\"session\":\"%s\",\"harvested\":%d,\"seed_bank\":%d}",
+                    s->id, harvested, org->seed_count);
+            } else {
+                snprintf(json_out, out_sz, "{\"error\":\"session not found\"}");
+            }
+        } else if (strcmp(sub, "merge") == 0) {
+            char dst_id[CSOS_NAME_LEN] = {0};
+            json_str(json_in, "dst", dst_id, sizeof(dst_id));
+            csos_session_t *src = csos_session_find(org, sid);
+            csos_session_t *dst = csos_session_find(org, dst_id);
+            if (src && dst) {
+                double conv = csos_session_convergence(org, src, dst);
+                int merged = csos_session_merge(org, src, dst);
+                snprintf(json_out, out_sz,
+                    "{\"convergence\":%.3f,\"merged\":%d,\"threshold\":%.3f}",
+                    conv, merged, CSOS_BOYER_THRESHOLD);
+            } else {
+                snprintf(json_out, out_sz, "{\"error\":\"session not found\"}");
+            }
+        } else {
+            /* Default: show full greenhouse state */
+            csos_greenhouse_see(org, json_out, out_sz);
+        }
         return 0;
     }
 
@@ -1035,6 +1536,21 @@ int csos_handle(csos_organism_t *org, const char *json_in,
             snprintf(raw, sizeof(raw), "workflow_draft %s nodes=%d", wf_name, node_count);
             csos_photon_t ph = csos_organism_absorb(org, "workflow", raw, PROTO_LLM);
 
+            /* ── SYNTHESIS: Auto-infer workflow into active sessions ── */
+            /* Every workflow drafted in this agentic environment becomes an
+             * element of ALL active sessions' living equations.
+             * Biology: a new metabolic pathway activating in the cell. */
+            for (int si = 0; si < org->session_count; si++) {
+                csos_session_t *sess = &org->sessions[si];
+                if (sess->stage == SESSION_DORMANT) continue;
+                csos_session_track_workflow(sess, wf_name, node_count);
+                csos_session_record_flow(sess, FLOW_WORKFLOW, ph.cycle,
+                                         (double)node_count, ph.delta,
+                                         ph.vitality, sess->substrate_hash,
+                                         wf_name);
+                csos_session_synthesize(sess);
+            }
+
             /* Auto-save spec version */
             {
                 char vpath[512];
@@ -1216,6 +1732,22 @@ int csos_handle(csos_organism_t *org, const char *json_in,
                     snprintf(raw, sizeof(raw), "stage_%d %s delta=%d",
                              i, nodes[i], last.delta);
                     last = csos_organism_absorb(org, nodes[i], raw, PROTO_LLM);
+                }
+
+                /* ── SYNTHESIS: Track workflow step across all active sessions ── */
+                {
+                    int step_ok = (exit_code == 0 && last.delta >= 0);
+                    for (int si = 0; si < org->session_count; si++) {
+                        csos_session_t *sess = &org->sessions[si];
+                        if (sess->stage == SESSION_DORMANT) continue;
+                        csos_session_workflow_step(sess, wf_name, step_ok);
+                        char step_label[64];
+                        snprintf(step_label, sizeof(step_label), "%s:%s", wf_name, nodes[i]);
+                        csos_session_record_flow(sess, FLOW_WORKFLOW, last.cycle,
+                                                 last.actual, last.delta, last.vitality,
+                                                 sess->substrate_hash, step_label);
+                        csos_session_synthesize(sess);
+                    }
                 }
 
                 /* Escape command output for JSON */
@@ -2301,11 +2833,15 @@ int csos_handle(csos_organism_t *org, const char *json_in,
             /* Constants from membrane.h */
             pos += snprintf(json_out + pos, out_sz - pos,
                 "\"constants\":{\"boyer_threshold\":%.3f,\"motor_growth\":%.3f,"
-                "\"motor_decay\":%.3f,\"calvin_freq\":%d,\"forster_exp\":%d,"
-                "\"default_rw\":%.4f,\"error_guard\":%.4f}}",
-                CSOS_BOYER_THRESHOLD, CSOS_MOTOR_GROWTH, CSOS_MOTOR_DECAY,
-                CSOS_CALVIN_FREQUENCY, CSOS_FORSTER_EXPONENT,
-                CSOS_DEFAULT_RW, CSOS_ERROR_DENOM_GUARD);
+                "\"motor_decay_floor\":%.3f,\"motor_decay_ceil\":%.3f,"
+                "\"calvin_freq_min\":%d,\"calvin_freq_max\":%d,"
+                "\"forster_exp\":%d,"
+                "\"rw_floor\":%.4f,\"rw_ceil\":%.4f,\"error_guard\":%.4f}}",
+                CSOS_BOYER_THRESHOLD, CSOS_MOTOR_GROWTH,
+                CSOS_MOTOR_DECAY_FLOOR, CSOS_MOTOR_DECAY_CEIL,
+                CSOS_CALVIN_FREQ_MIN, CSOS_CALVIN_FREQ_MAX,
+                CSOS_FORSTER_EXPONENT,
+                CSOS_RW_FLOOR, CSOS_RW_CEIL, CSOS_ERROR_DENOM_GUARD);
         }
 
         /* ── RUNTIME LAYER: Exec view reads this ── */
@@ -2614,33 +3150,36 @@ static void http_send(int fd, int status, const char *ctype, const char *body, s
 
 /* Cached canvas HTML — loaded once, served from memory.
  * Eliminates fopen/fseek/fread/malloc/free per request. */
-static char *_canvas_cache = NULL;
-static size_t _canvas_cache_len = 0;
-
+/* Always read fresh from disk — no cache. Enables hot-reload during development. */
 static void http_send_canvas(int fd) {
-    if (!_canvas_cache) {
-        /* Try canvas file first (optional) */
-        FILE *f = fopen(".canvas-tui/index.html", "r");
-        if (f) {
-            fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
-            _canvas_cache = (char *)malloc(sz + 1);
-            _canvas_cache_len = fread(_canvas_cache, 1, sz, f);
-            _canvas_cache[_canvas_cache_len] = 0;
-            fclose(f);
-        } else {
-            /* No canvas — serve API status page */
-            const char *status =
-                "{\"csos\":true,\"api\":\"/api/command\",\"sse\":\"/events\","
-                "\"usage\":\"POST /api/command with JSON body\","
-                "\"agent\":\"Use OpenCode with csos-core tool\"}";
-            _canvas_cache = strdup(status);
-            _canvas_cache_len = strlen(_canvas_cache);
-            http_send(fd, 200, "application/json", _canvas_cache, _canvas_cache_len);
-            return;
-        }
+    const char *paths[] = {".canvas-tui/index.html", "../.canvas-tui/index.html", NULL};
+    FILE *f = NULL;
+    for (int i = 0; paths[i]; i++) { f = fopen(paths[i], "r"); if (f) break; }
+    if (!f) {
+        const char *fallback =
+            "{\"csos\":true,\"api\":\"/api/command\",\"sse\":\"/events\","
+            "\"usage\":\"POST /api/command with JSON body\"}";
+        http_send(fd, 200, "application/json", fallback, strlen(fallback));
+        return;
     }
-    http_send(fd, 200, _canvas_cache[0] == '{' ? "application/json" : "text/html; charset=utf-8",
-              _canvas_cache, _canvas_cache_len);
+    fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
+    char *buf = (char *)malloc(sz + 1);
+    size_t n = fread(buf, 1, sz, f);
+    buf[n] = 0;
+    fclose(f);
+    /* No-cache headers prevent browser from caching stale HTML */
+    char hdr[512];
+    int hlen = snprintf(hdr, sizeof(hdr),
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: text/html; charset=utf-8\r\n"
+        "Content-Length: %zu\r\n"
+        "Cache-Control: no-cache, no-store, must-revalidate\r\n"
+        "Pragma: no-cache\r\n"
+        "Access-Control-Allow-Origin: *\r\n"
+        "Connection: close\r\n\r\n", n);
+    write(fd, hdr, hlen);
+    write(fd, buf, n);
+    free(buf);
 }
 
 static void http_send_file(int fd, const char *path, const char *ctype) {
@@ -2656,17 +3195,86 @@ static void http_send_file(int fd, const char *path, const char *ctype) {
 /* Build full state JSON from organism */
 static int build_state_json(csos_organism_t *org, char *out, size_t sz) {
     int pos = 0;
+    const char *dec_names[] = {"EXPLORE","EXECUTE","ASK","STORE"};
     pos += snprintf(out + pos, sz - pos, "{\"rings\":{");
-    for (int i = 0; i < org->count && pos < (int)sz - 512; i++) {
+    for (int i = 0; i < org->count && pos < (int)sz - 1024; i++) {
         csos_membrane_t *m = org->membranes[i];
         if (i > 0) pos += snprintf(out + pos, sz - pos, ",");
+        const csos_equation_t *eq = &m->equation;
         pos += snprintf(out + pos, sz - pos,
             "\"%s\":{\"gradient\":%.0f,\"speed\":%.4f,\"F\":%.4f,\"rw\":%.3f,"
-            "\"cycles\":%u,\"atoms\":%d,\"decision\":\"%s\"}",
+            "\"cycles\":%u,\"atoms\":%d,\"decision\":\"%s\","
+            "\"mitchell_n\":%d,\"motor_count\":%d,"
+            "\"mode\":\"%s\",\"gradient_gap\":%.1f,"
+            "\"rdma_enabled\":%d,\"coupling_count\":%d,"
+            "\"action_ratio\":%.4f,\"consecutive_zero_delta\":%d,"
+            "\"equation\":{"
+              "\"gouterman\":%.4f,\"forster\":%.4f,\"marcus\":%.4f,"
+              "\"mitchell\":%.4f,\"boyer\":%.4f,"
+              "\"vitality\":%.6f,\"vitality_ema\":%.6f,"
+              "\"vitality_peak\":%.6f,\"alive_cycles\":%u}}",
             m->name, m->gradient, m->speed, m->F, m->rw, m->cycles, m->atom_count,
-            m->speed > m->rw ? "EXECUTE" : "EXPLORE");
+            dec_names[m->decision & 3],
+            m->mitchell_n, m->motor_count,
+            m->mode == MODE_BUILD ? "build" : "plan",
+            m->gradient_gap, m->rdma_enabled, m->coupling_count,
+            m->action_ratio, m->consecutive_zero_delta,
+            eq->gouterman, eq->forster, eq->marcus,
+            eq->mitchell, eq->boyer,
+            eq->vitality, eq->vitality_ema,
+            eq->vitality_peak, eq->alive_cycles);
     }
-    pos += snprintf(out + pos, sz - pos, "},\"clients\":%d,\"native\":true}", _sse_count);
+    /* Organism-level vitality */
+    double org_vitality = 0;
+    if (org->count > 0) {
+        double product = 1.0; int alive = 0;
+        for (int i = 0; i < org->count; i++) {
+            if (org->membranes[i] && org->membranes[i]->equation.vitality > 0) {
+                product *= org->membranes[i]->equation.vitality;
+                alive++;
+            }
+        }
+        if (alive > 0) org_vitality = pow(product, 1.0 / alive);
+    }
+    /* Sessions as living equations */
+    const char *stage_nm[] = {"seed","sprout","grow","bloom","harvest","dormant"};
+    pos += snprintf(out + pos, sz - pos,
+        "},\"organism_vitality\":%.6f,\"sessions\":[", org_vitality);
+    for (int i = 0; i < org->session_count && pos < (int)sz - 512; i++) {
+        const csos_session_t *s = &org->sessions[i];
+        if (i > 0) pos += snprintf(out + pos, sz - pos, ",");
+        pos += snprintf(out + pos, sz - pos,
+            "{\"id\":\"%s\",\"substrate\":\"%s\",\"binding\":\"%s\","
+            "\"stage\":\"%s\",\"vitality\":%.4f,\"trend\":%.4f,"
+            "\"gradient\":%.0f,\"deliveries\":%d,\"ticks\":%d,"
+            "\"autonomous\":%s,\"interval\":%d,"
+            "\"ingress\":\"%s\",\"egress\":\"%s\"}",
+            s->id, s->substrate, s->binding,
+            stage_nm[s->stage < 6 ? s->stage : 0],
+            s->vitality, s->vitality_trend,
+            s->peak_gradient, s->deliveries, s->schedule.tick_count,
+            s->schedule.autonomous ? "true" : "false",
+            s->schedule.interval_secs,
+            s->ingress.type, s->egress.type);
+    }
+    /* Recent events (bottlenecks, milestones) */
+    const char *etype_n[] = {"agent","canvas","bottleneck","resolution","scheduler","milestone"};
+    pos += snprintf(out + pos, sz - pos, "],\"events\":[");
+    int ecount = org->event_count < 10 ? org->event_count : 10;
+    for (int ei = 0; ei < ecount && pos < (int)sz - 256; ei++) {
+        int eidx = (org->event_head - ecount + ei);
+        if (eidx < 0) eidx += CSOS_MAX_EVENTS;
+        eidx = eidx % CSOS_MAX_EVENTS;
+        const csos_event_t *ev = &org->events[eidx];
+        if (ei > 0) pos += snprintf(out + pos, sz - pos, ",");
+        pos += snprintf(out + pos, sz - pos,
+            "{\"type\":\"%s\",\"source\":\"%s\",\"session\":\"%s\","
+            "\"message\":\"%s\",\"severity\":%d,\"vitality\":%.3f}",
+            etype_n[ev->type < 6 ? ev->type : 0], ev->source,
+            ev->session, ev->message, ev->severity, ev->vitality);
+    }
+    pos += snprintf(out + pos, sz - pos,
+        "],\"clients\":%d,\"native\":true}", _sse_count);
     return pos;
 }
 
@@ -2720,7 +3328,7 @@ int csos_http_loop(csos_organism_t *org, uint16_t port) {
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     struct sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); /* 127.0.0.1 — bypasses macOS firewall */
     addr.sin_port = htons(port);
     if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) { close(fd); return -1; }
     listen(fd, 32);
@@ -2737,7 +3345,49 @@ int csos_http_loop(csos_organism_t *org, uint16_t port) {
         for (int i = 0; i < _sse_count; i++) {
             pfds[i + 1].fd = _sse_fds[i]; pfds[i + 1].events = POLLIN;
         }
-        int nfds = poll(pfds, 1 + _sse_count, 5000);
+        /* Poll with 1-second timeout (scheduler needs sub-second resolution
+         * for interval_secs=1 sessions, but 1s is sufficient for most use) */
+        int nfds = poll(pfds, 1 + _sse_count, 1000);
+
+        /* ═══ SCHEDULER: Tick all due sessions (circadian rhythm) ═══
+         * Every poll cycle (1s), check if any sessions are due.
+         * This IS the heartbeat of the organism — sessions run themselves.
+         * The scheduler is non-blocking: tick_all only runs ingress for
+         * sessions whose next_tick <= now. */
+        {
+            int ticked = csos_session_tick_all(org);
+            if (ticked > 0) {
+                /* Log scheduler event */
+                char emsg[128];
+                snprintf(emsg, sizeof(emsg), "Ticked %d sessions autonomously", ticked);
+                csos_event_log(org, EVT_SCHEDULER, "scheduler", "", emsg, 0);
+                /* Broadcast tick + events to SSE clients */
+                char tick_json[8192];
+                int tp = snprintf(tick_json, sizeof(tick_json),
+                    "{\"scheduler_tick\":true,\"sessions_ticked\":%d,", ticked);
+                /* Include recent events in broadcast */
+                tp += snprintf(tick_json + tp, sizeof(tick_json) - tp, "\"recent_events\":[");
+                int ecount = org->event_count < 5 ? org->event_count : 5;
+                const char *etype[] = {"agent","canvas","bottleneck","resolution","scheduler","milestone"};
+                for (int ei = 0; ei < ecount && tp < (int)sizeof(tick_json) - 256; ei++) {
+                    int eidx = (org->event_head - ecount + ei);
+                    if (eidx < 0) eidx += CSOS_MAX_EVENTS;
+                    eidx = eidx % CSOS_MAX_EVENTS;
+                    const csos_event_t *ev = &org->events[eidx];
+                    if (ei > 0) tp += snprintf(tick_json + tp, sizeof(tick_json) - tp, ",");
+                    tp += snprintf(tick_json + tp, sizeof(tick_json) - tp,
+                        "{\"type\":\"%s\",\"source\":\"%s\",\"session\":\"%s\","
+                        "\"message\":\"%s\",\"severity\":%d}",
+                        etype[ev->type < 6 ? ev->type : 0], ev->source,
+                        ev->session, ev->message, ev->severity);
+                }
+                tp += snprintf(tick_json + tp, sizeof(tick_json) - tp, "]}");
+                sse_broadcast(org, "response", tick_json);
+                /* Auto-save after autonomous ticks */
+                csos_organism_save(org);
+            }
+        }
+
         if (nfds <= 0) {
             /* Keepalive for SSE clients (non-blocking safe) */
             for (int i = _sse_count - 1; i >= 0; i--) {
@@ -2831,6 +3481,123 @@ int csos_http_loop(csos_organism_t *org, uint16_t port) {
                 http_send(cl, 200, "application/json", resp, strlen(resp));
                 /* Broadcast to SSE clients */
                 sse_broadcast(org, "response", resp);
+            }
+            else if (strcmp(path, "/api/agent") == 0) {
+                /* ═══ MULTI-AGENT PROXY (async) ═══
+                 * Routes to the right agent based on intent or explicit "agent" field.
+                 * 4 agents: csos-living (orchestrator), csos-observer (read),
+                 *           csos-operator (write), csos-analyst (patterns).
+                 * Canvas sends {message, agent?} → we fork → opencode run → SSE back. */
+                char msg[4096] = {0}, agent_name[64] = {0}, sess_ctx[CSOS_NAME_LEN] = {0};
+                json_str(body, "message", msg, sizeof(msg));
+                json_str(body, "agent", agent_name, sizeof(agent_name));
+                json_str(body, "session", sess_ctx, sizeof(sess_ctx));
+                if (!msg[0]) {
+                    http_send(cl, 400, "application/json",
+                        "{\"error\":\"message required\"}", 28);
+                } else {
+                    /* ═══ SESSION CONTEXT INJECTION ═══
+                     * When Canvas sends a session field, enrich the message
+                     * AND log the event with session context so agents
+                     * can be session-aware. */
+                    if (sess_ctx[0]) {
+                        csos_event_log(org, EVT_CANVAS_ACTION, "canvas",
+                            sess_ctx, msg, 0);
+                        /* Absorb attention into cockpit for this session */
+                        if (_k) {
+                            csos_session_t *s = csos_session_find(org, sess_ctx);
+                            if (s) {
+                                csos_membrane_absorb(_k, 15.0, s->substrate_hash, PROTO_STDIO);
+                            }
+                        }
+                    }
+                    /* Auto-route if no agent specified */
+                    if (!agent_name[0]) {
+                        /* Intent detection: keywords → agent */
+                        const char *low = msg; /* Simple keyword check */
+                        int is_observe = (strstr(low,"health") || strstr(low,"status") ||
+                            strstr(low,"explain") || strstr(low,"vitality") ||
+                            strstr(low,"what") || strstr(low,"how") || strstr(low,"why") ||
+                            strstr(low,"show") || strstr(low,"check") || strstr(low,"diagnose"));
+                        int is_operate = (strstr(low,"spawn") || strstr(low,"create") ||
+                            strstr(low,"bind") || strstr(low,"connect") || strstr(low,"schedule") ||
+                            strstr(low,"set up") || strstr(low,"monitor") || strstr(low,"wake") ||
+                            strstr(low,"tick") || strstr(low,"run") || strstr(low,"feed"));
+                        int is_analyze = (strstr(low,"pattern") || strstr(low,"trend") ||
+                            strstr(low,"converge") || strstr(low,"compare") || strstr(low,"across") ||
+                            strstr(low,"insight") || strstr(low,"analyze") || strstr(low,"which"));
+                        if (is_operate && !is_observe)
+                            strncpy(agent_name, "csos-operator", sizeof(agent_name)-1);
+                        else if (is_analyze && !is_operate)
+                            strncpy(agent_name, "csos-analyst", sizeof(agent_name)-1);
+                        else if (is_observe && !is_operate)
+                            strncpy(agent_name, "csos-observer", sizeof(agent_name)-1);
+                        else
+                            strncpy(agent_name, "csos-living", sizeof(agent_name)-1);
+                    }
+                    if (!sess_ctx[0]) {
+                        csos_event_log(org, EVT_CANVAS_ACTION, "canvas", "",
+                            msg, 0);
+                    }
+                    /* Escape for shell */
+                    char escaped[4096] = {0};
+                    int ei = 0;
+                    for (int i = 0; msg[i] && ei < (int)sizeof(escaped)-2; i++) {
+                        if (msg[i] == '\'') { escaped[ei++]='\''; escaped[ei++]='\\';
+                                              escaped[ei++]='\''; escaped[ei++]='\''; }
+                        else if (msg[i] == '\n') { escaped[ei++] = ' '; }
+                        else escaped[ei++] = msg[i];
+                    }
+                    /* Fork child for async agent execution */
+                    pid_t pid = fork();
+                    if (pid == 0) {
+                        char cmd_buf[8192];
+                        snprintf(cmd_buf, sizeof(cmd_buf),
+                            "cd '%s' && script -q /dev/null opencode run --agent %s '%s' </dev/null 2>/dev/null",
+                            org->root, agent_name, escaped);
+                        FILE *fp = popen(cmd_buf, "r");
+                        if (!fp) _exit(1);
+                        char out[32768] = {0};
+                        size_t total = 0;
+                        while (total < sizeof(out)-1) {
+                            size_t n = fread(out+total, 1, sizeof(out)-1-total, fp);
+                            if (n == 0) break;
+                            total += n;
+                        }
+                        pclose(fp);
+                        /* Strip ANSI + sanitize for JSON */
+                        char clean[16384] = {0};
+                        int ci = 0;
+                        for (size_t i = 0; i < total && ci < (int)sizeof(clean)-4; i++) {
+                            if (out[i] == '\x1b') { while (i < total && out[i] != 'm') i++; continue; }
+                            if (out[i] == '"') { clean[ci++]=' '; }
+                            else if (out[i] == '\\') { clean[ci++]=' '; }
+                            else if (out[i] == '\n') { clean[ci++]='\\'; clean[ci++]='n'; }
+                            else if (out[i] == '\t') { clean[ci++]=' '; }
+                            else if ((unsigned char)out[i] >= 32) clean[ci++] = out[i];
+                        }
+                        /* POST result back via msg channel (with session context) */
+                        char post[32768];
+                        int plen = snprintf(post, sizeof(post),
+                            "{\"action\":\"msg\",\"sub\":\"send\",\"from\":\"%s\","
+                            "\"to\":\"canvas\",\"session\":\"%s\",\"body\":\"%.*s\"}",
+                            agent_name, sess_ctx, (int)(sizeof(post)-300), clean);
+                        char curl_cmd[200];
+                        snprintf(curl_cmd, sizeof(curl_cmd),
+                            "curl -sf -X POST http://127.0.0.1:4200/api/command "
+                            "-H 'Content-Type: application/json' -d @-");
+                        FILE *cp = popen(curl_cmd, "w");
+                        if (cp) { fwrite(post, 1, plen, cp); pclose(cp); }
+                        _exit(0);
+                    }
+                    /* Parent: respond immediately */
+                    char proc_resp[256];
+                    snprintf(proc_resp, sizeof(proc_resp),
+                        "{\"agent\":true,\"routed_to\":\"%s\",\"status\":\"processing\","
+                        "\"message\":\"@%s is working on it...\"}",
+                        agent_name, agent_name);
+                    http_send(cl, 200, "application/json", proc_resp, strlen(proc_resp));
+                }
             }
             else {
                 http_send(cl, 404, "application/json", "{\"error\":\"not found\"}", 21);

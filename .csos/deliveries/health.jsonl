@@ -1,0 +1,714 @@
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9980,"gradient":71372,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9980,"gradient":71390,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9980,"gradient":71408,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9979,"gradient":71426,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9979,"gradient":71444,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9979,"gradient":71462,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9979,"gradient":71480,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9979,"gradient":71498,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9979,"gradient":71516,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9978,"gradient":71534,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9978,"gradient":71552,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9978,"gradient":71570,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9978,"gradient":71588,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9978,"gradient":71606,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9978,"gradient":71624,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9977,"gradient":71642,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9977,"gradient":71660,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9977,"gradient":71678,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9977,"gradient":71696,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9977,"gradient":71714,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9977,"gradient":71732,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9976,"gradient":71750,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9976,"gradient":71768,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9976,"gradient":71786,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9976,"gradient":71804,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9976,"gradient":71822,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9976,"gradient":71840,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9975,"gradient":71858,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9975,"gradient":71876,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9975,"gradient":71894,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9975,"gradient":71912,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9975,"gradient":71930,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9975,"gradient":71948,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9974,"gradient":71966,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9974,"gradient":71984,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9974,"gradient":72002,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9974,"gradient":72020,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9974,"gradient":72038,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9974,"gradient":72056,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9973,"gradient":72074,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9973,"gradient":72092,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9973,"gradient":72110,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9973,"gradient":72128,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9973,"gradient":72146,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9973,"gradient":72164,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9972,"gradient":72182,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9972,"gradient":72200,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9972,"gradient":72218,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9972,"gradient":72236,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9972,"gradient":72254,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9972,"gradient":72272,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9972,"gradient":72290,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9971,"gradient":72308,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9971,"gradient":72326,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9971,"gradient":72344,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9971,"gradient":72362,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9971,"gradient":72380,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9971,"gradient":72398,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9970,"gradient":72416,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9970,"gradient":72434,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9970,"gradient":72452,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9970,"gradient":72470,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9970,"gradient":72488,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9970,"gradient":72506,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9969,"gradient":72524,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9969,"gradient":72542,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9969,"gradient":72560,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9969,"gradient":72578,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9969,"gradient":72596,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9969,"gradient":72614,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9968,"gradient":72632,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9968,"gradient":72650,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9968,"gradient":72668,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9968,"gradient":72686,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9968,"gradient":72704,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9968,"gradient":72722,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9967,"gradient":72740,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9967,"gradient":72758,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9967,"gradient":72776,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9967,"gradient":72794,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9967,"gradient":72812,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9967,"gradient":72830,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9967,"gradient":72848,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9966,"gradient":72866,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9966,"gradient":72884,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9966,"gradient":72902,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9966,"gradient":72920,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9966,"gradient":72938,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9966,"gradient":72956,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9965,"gradient":72974,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9965,"gradient":72992,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9965,"gradient":73010,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9965,"gradient":73028,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9965,"gradient":73046,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9965,"gradient":73064,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9964,"gradient":73082,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9964,"gradient":73100,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9964,"gradient":73118,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9964,"gradient":73136,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9964,"gradient":73154,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9964,"gradient":73172,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9964,"gradient":73190,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9963,"gradient":73208,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9963,"gradient":73226,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9963,"gradient":73244,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9963,"gradient":73262,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9963,"gradient":73280,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9963,"gradient":73298,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9962,"gradient":73316,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9962,"gradient":73334,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9962,"gradient":73352,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9962,"gradient":73370,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9962,"gradient":73388,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9962,"gradient":73406,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9961,"gradient":73424,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9961,"gradient":73442,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9961,"gradient":73460,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9961,"gradient":73478,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9961,"gradient":73496,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9961,"gradient":73514,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9961,"gradient":73532,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9960,"gradient":73550,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9960,"gradient":73568,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9960,"gradient":73586,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9960,"gradient":73604,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9960,"gradient":73622,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9960,"gradient":73640,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9959,"gradient":73658,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9959,"gradient":73676,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9959,"gradient":73694,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9959,"gradient":73712,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9959,"gradient":73730,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9959,"gradient":73748,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9958,"gradient":73766,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9958,"gradient":73784,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9958,"gradient":73802,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9958,"gradient":73820,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9958,"gradient":73838,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9958,"gradient":73856,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9958,"gradient":73874,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9957,"gradient":73892,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9957,"gradient":73910,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9957,"gradient":73928,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9957,"gradient":73946,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9957,"gradient":73964,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9957,"gradient":73982,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9956,"gradient":74000,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9956,"gradient":74018,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9956,"gradient":74036,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9956,"gradient":74054,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9956,"gradient":74072,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9956,"gradient":74090,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9956,"gradient":74108,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9955,"gradient":74126,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9955,"gradient":74144,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9955,"gradient":74162,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9955,"gradient":74180,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9955,"gradient":74198,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9955,"gradient":74216,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9954,"gradient":74234,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9954,"gradient":74252,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9954,"gradient":74270,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9954,"gradient":74288,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9954,"gradient":74306,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9954,"gradient":74324,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9954,"gradient":74342,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9953,"gradient":74360,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9953,"gradient":74378,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9953,"gradient":74396,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9953,"gradient":74414,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9953,"gradient":74432,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9953,"gradient":74450,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9953,"gradient":74468,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9952,"gradient":74486,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9952,"gradient":74504,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9952,"gradient":74522,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9952,"gradient":74540,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9952,"gradient":74558,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9952,"gradient":74576,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9951,"gradient":74594,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9951,"gradient":74612,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9951,"gradient":74630,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9951,"gradient":74648,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9951,"gradient":74666,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9951,"gradient":74684,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9951,"gradient":74702,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9950,"gradient":74720,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9950,"gradient":74738,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9950,"gradient":74756,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9950,"gradient":74774,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9950,"gradient":74792,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9950,"gradient":74810,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9950,"gradient":74828,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9949,"gradient":74846,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9949,"gradient":74864,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9949,"gradient":74882,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9949,"gradient":74900,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9949,"gradient":74918,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9949,"gradient":74936,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9948,"gradient":74954,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9948,"gradient":74972,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9948,"gradient":74990,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9948,"gradient":75008,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9948,"gradient":75026,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9948,"gradient":75044,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9948,"gradient":75062,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9947,"gradient":75080,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9947,"gradient":75098,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9947,"gradient":75116,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9947,"gradient":75134,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9947,"gradient":75152,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9947,"gradient":75170,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9947,"gradient":75188,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9946,"gradient":75206,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9946,"gradient":75224,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9946,"gradient":75242,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9946,"gradient":75260,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9946,"gradient":75278,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9946,"gradient":75296,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9945,"gradient":75314,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9945,"gradient":75332,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9945,"gradient":75350,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9945,"gradient":75368,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9945,"gradient":75386,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9945,"gradient":75404,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9945,"gradient":75422,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9944,"gradient":75440,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9944,"gradient":75458,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9944,"gradient":75476,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9944,"gradient":75494,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9944,"gradient":75512,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9944,"gradient":75530,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9944,"gradient":75548,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9943,"gradient":75566,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9943,"gradient":75584,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9943,"gradient":75602,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9943,"gradient":75620,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9943,"gradient":75638,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9943,"gradient":75656,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9943,"gradient":75674,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9942,"gradient":75692,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9942,"gradient":75710,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9942,"gradient":75728,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9942,"gradient":75746,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9942,"gradient":75764,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9942,"gradient":75782,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9942,"gradient":75800,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9941,"gradient":75818,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9941,"gradient":75836,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9941,"gradient":75854,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9941,"gradient":75872,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9941,"gradient":75890,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9941,"gradient":75908,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9941,"gradient":75926,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9940,"gradient":75944,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9940,"gradient":75962,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9940,"gradient":75980,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9940,"gradient":75998,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9940,"gradient":76016,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9940,"gradient":76034,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9940,"gradient":76052,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9939,"gradient":76070,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9939,"gradient":76088,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9939,"gradient":76106,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9939,"gradient":76124,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9939,"gradient":76142,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9939,"gradient":76160,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9939,"gradient":76178,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9938,"gradient":76196,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9938,"gradient":76214,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9938,"gradient":76232,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9938,"gradient":76250,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9938,"gradient":76268,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9938,"gradient":76286,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9938,"gradient":76304,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9937,"gradient":76322,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9937,"gradient":76340,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9937,"gradient":76358,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9937,"gradient":76376,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9937,"gradient":76394,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9937,"gradient":76412,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9937,"gradient":76430,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9936,"gradient":76448,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9936,"gradient":76466,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9936,"gradient":76484,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9936,"gradient":76502,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9936,"gradient":76520,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9936,"gradient":76538,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9936,"gradient":76556,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9935,"gradient":76574,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9935,"gradient":76592,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9935,"gradient":76610,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9935,"gradient":76628,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9935,"gradient":76646,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9935,"gradient":76664,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9935,"gradient":76682,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9934,"gradient":76700,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9934,"gradient":76718,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9934,"gradient":76736,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9934,"gradient":76754,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9934,"gradient":76772,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9934,"gradient":76790,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9934,"gradient":76808,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9933,"gradient":76826,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9933,"gradient":76844,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9933,"gradient":76862,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9933,"gradient":76880,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9933,"gradient":76898,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9933,"gradient":76916,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9933,"gradient":76934,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9932,"gradient":76952,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9932,"gradient":76970,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9932,"gradient":76988,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9932,"gradient":77006,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9932,"gradient":77024,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9932,"gradient":77042,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9932,"gradient":77060,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9931,"gradient":77078,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9931,"gradient":77096,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9931,"gradient":77114,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9931,"gradient":77132,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9931,"gradient":77150,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9931,"gradient":77168,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9931,"gradient":77186,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9930,"gradient":77204,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9930,"gradient":77222,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9930,"gradient":77240,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9930,"gradient":77258,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9930,"gradient":77276,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9930,"gradient":77294,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9930,"gradient":77312,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77330,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77348,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77366,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77384,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77402,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77420,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77438,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9929,"gradient":77456,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9928,"gradient":77474,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9928,"gradient":77492,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9928,"gradient":77510,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9928,"gradient":77528,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9928,"gradient":77546,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9928,"gradient":77564,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9928,"gradient":77582,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9927,"gradient":77600,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9927,"gradient":77618,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9927,"gradient":77636,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9927,"gradient":77654,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9927,"gradient":77672,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9927,"gradient":77690,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9927,"gradient":77708,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9926,"gradient":77726,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9926,"gradient":77744,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9926,"gradient":77762,"data":"status=ok latency=42ms
+"}
+{"session":"health_check","substrate":"infra","decision":"EXECUTE","vitality":0.9926,"gradient":77780,"data":"status=ok latency=42ms
+"}

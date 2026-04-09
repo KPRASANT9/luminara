@@ -2,10 +2,10 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
     "AGENTS.md",
-    "ONE agent (@csos-living). ONE tool (csos-core). ONE binary (./csos).",
+    "4 agents sharing ONE binary (./csos), ONE tool (csos-core), ONE membrane.",
+    "@csos-living orchestrates. @csos-observer reads. @csos-operator writes. @csos-analyst patterns.",
     "ALL I/O through csos-core. No bash, write, edit, webfetch, websearch.",
-    "The membrane computes physics. The agent reads the response and acts.",
-    "ONE csos-core call per step. Read the photon. Physics decides the next step."
+    "The membrane computes physics. Agents read the photon and act on it."
   ],
   "skills": {
     "csos-core": { "path": ".opencode/skills/csos-core" },
@@ -15,24 +15,24 @@
   },
   "agent": {
     "csos-living": {
-      "description": "The living equation. ONE agent reads physics and acts. Routes to view agents.",
+      "description": "The orchestrator. Routes to observer/operator/analyst based on intent.",
       "mode": "primary",
       "prompt": "{file:agents/csos-living.md}"
     },
-    "csos-visual": {
-      "description": "Spec layer editor. Visual toggle. Atoms, Mermaid DAGs, edges.",
+    "csos-observer": {
+      "description": "Photosystem I. Reads state, explains health, surfaces bottlenecks. Read-only.",
       "mode": "subagent",
-      "prompt": "{file:agents/csos-visual.md}"
+      "prompt": "{file:agents/csos-observer.md}"
     },
-    "csos-codegen": {
-      "description": "Compile layer editor. Code toggle. Formulas, params, JIT state.",
+    "csos-operator": {
+      "description": "ATP Synthase. Spawns sessions, binds ingress/egress, sets schedules. Write ops.",
       "mode": "subagent",
-      "prompt": "{file:agents/csos-codegen.md}"
+      "prompt": "{file:agents/csos-operator.md}"
     },
-    "csos-runtime": {
-      "description": "Runtime executor. Exec toggle. Physics, motor, RDMA, workflow execution.",
+    "csos-analyst": {
+      "description": "Calvin Cycle. Cross-session patterns, convergence, trend analysis.",
       "mode": "subagent",
-      "prompt": "{file:agents/csos-runtime.md}"
+      "prompt": "{file:agents/csos-analyst.md}"
     }
   },
   "permission": {

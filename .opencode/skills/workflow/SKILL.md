@@ -94,29 +94,55 @@ csos-core workflow=versions name=my_pipeline
 csos-core workflow=restore name=my_pipeline version=2
 ```
 
-## Execution Lifecycle
+## Substrate Onboarding (workflow → living equation)
+
+A workflow is a substrate definition. Once a workflow runs successfully, bind it as a session for autonomous operation:
+
+### 1. Describe → Synthesize
+```
+csos-core workflow=synthesize description="fetch orders from postgres, validate schema, push to S3"
+```
+
+### 2. Configure each node
+```
+csos-core workflow=configure name=order_pipeline node=pg_query config='{"command":"psql -h db.prod -c \"SELECT * FROM orders WHERE created > now() - interval 1 hour\""}'
+csos-core workflow=configure name=order_pipeline node=validate config='{"command":"jq \"select(.amount > 0)\"","timeout":"10"}'
+csos-core workflow=configure name=order_pipeline node=s3_io config='{"command":"aws s3 cp - s3://bucket/orders/$(date +%s).json"}'
+```
+
+### 3. Step-test each node
+```
+csos-core workflow=run_step name=order_pipeline spec="pg_query --> validate --> s3_io" step=0
+csos-core workflow=run_step name=order_pipeline spec="pg_query --> validate --> s3_io" step=1
+csos-core workflow=run_step name=order_pipeline spec="pg_query --> validate --> s3_io" step=2
+```
+
+### 4. Run full pipeline
+```
+csos-core workflow=run spec="pg_query --> validate --> s3_io" name=order_pipeline
+```
+
+### 5. Bind as living equation (session)
+```
+csos-core session=spawn id="order_pipeline" substrate="orders"
+csos-core session=bind id="order_pipeline" binding="postgres:orders" ingress_type="command" ingress_source="psql -h db.prod -c 'SELECT count(*) FROM orders'" egress_type="file" egress_target=".csos/deliveries/order_pipeline.jsonl"
+csos-core session=schedule id="order_pipeline" interval="300" autonomous="true"
+```
+
+The workflow → session pipeline: **describe → synthesize → configure → test → run → bind → schedule**
+
+## Lifecycle
 
 ```
 1. User describes intent → Agent synthesizes workflow
-2. User copies Preview action → sees Mermaid spec + node table
-3. User copies Code action → configures per-node commands
-4. User copies Execute action → runs workflow with real commands
+2. Agent shows spec + node table → suggests next steps conversationally
+3. User says "configure fetch" → Agent configures the node
+4. User says "run it" → Agent executes the workflow
 5. Each node executes configured command via membrane
 6. Physics tracks execution (Boyer decides, motor strengthens)
-7. Agent presents results with action block (Preview/Code/Execute)
+7. Agent presents results → suggests what to do next
 8. User iterates: edit spec → reconfigure → re-run
-```
-
-## Workflow Lifecycle
-
-```
-1. User describes intent in natural language
-2. Agent synthesizes → Mermaid spec + compile/runtime metadata
-3. User previews, requests edits → Agent re-synthesizes
-4. Agent validates sources → Exposes as wrapper objects
-5. Agent binds sources to nodes → Creates cluster
-6. Cluster runs → Boyer decides per-stage
-7. Agent monitors → Reports state via physics (gradient, speed, motor)
+9. When stable: bind as session → autonomous living equation
 ```
 
 ## Physics Integration
@@ -161,10 +187,10 @@ csos-core rdma=diffuse ring=eco_domain remoteRing=eco_domain nodeId=1
 csos-core rdma=status
 ```
 
-## View-Agent Binding
+## IR Layers
 
-| View | Agent | IR Layer | Key Commands |
-|------|-------|----------|-------------|
-| Visual | @csos-visual | spec | synthesize, draft, versions |
-| Code | @csos-codegen | compile | configure, ir=compile |
-| Exec | @csos-runtime | runtime | run, run_step, rdma, cluster |
+| Layer | What it shows | Key Commands |
+|-------|--------------|-------------|
+| Spec | atoms, rings, Mermaid | synthesize, draft, versions, ir=spec |
+| Compile | formulas, params, JIT | configure, ir=compile |
+| Runtime | physics, motor, RDMA | run, run_step, rdma, cluster, ir=runtime |

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make)",
+      "Bash(./csos --test)",
+      "Bash(./csos)",
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c \"import sys,json; d=json.loads\\([l for l in sys.stdin if 'living_equations' in l][0]\\); [print\\(f'{s[\\\\\"id\\\\\"]:15s} stage={s[\\\\\"stage\\\\\"]:8s} sv={s.get\\(\\\\\"session_vitality\\\\\",0\\):.4f} wf={s.get\\(\\\\\"workflows\\\\\",0\\)} cn={s.get\\(\\\\\"connections\\\\\",0\\)} flow={s.get\\(\\\\\"flow_elements\\\\\",0\\)}'\\) for s in d['living_equations']]\")"
+    ]
+  }
+}

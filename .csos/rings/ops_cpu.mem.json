@@ -3,18 +3,23 @@
   "gradient":180.0,
   "speed":1.000000,
   "F":0.026249,
-  "rw":0.833333,
+  "rw":0.851790,
   "action_ratio":1.000000,
   "cycles":36,
   "signals":36,
+  "mitchell_n":1,
+  "gradient_gap":0.0000,
+  "rdma_enabled":0,
+  "coupling_count":0,
   "mode":1,
   "decision":1,
   "consecutive_zero_delta":0,
   "atom_count":5,
+  "equation":{"gouterman":1.000000,"forster":0.100000,"marcus":0.974422,"mitchell":0.500000,"boyer":1.000000,"vitality":0.546441,"vitality_ema":0.535335,"vitality_peak":0.548188,"alive_cycles":36},
   "motor_cycle":36,
   "motor_count":1,
   "motor":[
-    {"hash":7001,"last":35,"interval":1,"prev":1,"reps":36,"strength":1.000000}
+    {"hash":7001,"last":35,"interval":1,"prev":1,"reps":36,"strength":0.560221}
   ],
   "f_history":[0.0100,0.0100,0.0100,0.0110,0.0110,0.0110,0.0126,0.0124,0.0122,0.0132,0.0130,0.0128,0.0136,0.0134,0.0132,0.0138,0.0136,0.0135,0.0139,0.0138,0.0136,0.0140,0.0139,0.0138,0.0141,0.0140,0.0139,0.0142,0.0141,0.0140,0.0141,0.0136,0.0132,0.0128,0.0125,0.0262],
   "calvin_atoms":[

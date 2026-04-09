@@ -88,6 +88,67 @@ ring eco_organism {
     mitchell_n: 3;
 }
 
+// ═══ BENCHMARK SUBSTRATES (8 domains, spec-driven routing) ═══
+// Each substrate defines a Gouterman spectral range for signal filtering,
+// plus Calvin/RW hints derived from benchmark characteristics.
+// No hardcoded per-benchmark branches — physics adapts via these profiles.
+
+substrate mmlu {
+    spectral: [100, 2000];      // Broad knowledge — wide absorption
+    rw_hint: 0.88;              // Medium selectivity (multi-choice)
+    calvin_freq_hint: 3;        // Moderate synthesis (large topic space)
+    role: "Multi-domain knowledge (reasoning across 57 subjects)";
+}
+
+substrate hellaswag {
+    spectral: [50, 1000];       // Commonsense patterns — narrower range
+    rw_hint: 0.90;              // High selectivity (plausible vs implausible)
+    calvin_freq_hint: 4;        // Slower synthesis (fewer novel patterns)
+    role: "Commonsense reasoning (sentence completion)";
+}
+
+substrate gsm8k {
+    spectral: [10, 500];        // Math signals — low spectral range
+    rw_hint: 0.86;              // Tight selectivity (exact answers)
+    calvin_freq_hint: 2;        // Fast synthesis (step-by-step patterns)
+    role: "Grade school math (multi-step arithmetic)";
+}
+
+substrate humaneval {
+    spectral: [200, 5000];      // Code signals — wide spectral range
+    rw_hint: 0.87;              // Medium-tight (must compile + pass tests)
+    calvin_freq_hint: 2;        // Fast synthesis (code pattern reuse)
+    role: "Code generation (function completion)";
+}
+
+substrate truthfulqa {
+    spectral: [20, 800];        // Factual signals — moderate range
+    rw_hint: 0.91;              // Very selective (truth vs popular misconception)
+    calvin_freq_hint: 5;        // Slow synthesis (avoid false pattern capture)
+    role: "Truthfulness (resist common misconceptions)";
+}
+
+substrate mt_bench {
+    spectral: [100, 3000];      // Multi-turn dialog — broad range
+    rw_hint: 0.89;              // High selectivity (coherent multi-turn)
+    calvin_freq_hint: 3;        // Moderate synthesis (conversation patterns)
+    role: "Multi-turn conversation quality";
+}
+
+substrate ifeval {
+    spectral: [50, 1500];       // Instruction following — medium range
+    rw_hint: 0.87;              // Medium selectivity (strict instruction adherence)
+    calvin_freq_hint: 3;        // Moderate synthesis
+    role: "Instruction following (format compliance)";
+}
+
+substrate gpqa {
+    spectral: [500, 8000];      // Expert-level — very wide range (deep reasoning)
+    rw_hint: 0.85;              // Tight selectivity (PhD-level precision)
+    calvin_freq_hint: 2;        // Fast synthesis (build expert reasoning chains)
+    role: "Graduate-level expert Q&A (diamond-hard questions)";
+}
+
 // ═══ COMPILE DIRECTIVES ═══
 
 compile {
@@ -185,6 +246,131 @@ agent living {
             switch_substrate();
         }
     }
+}
+
+// ═══ GREENHOUSE (session = living equation) ═══
+//
+// The greenhouse is where living equations grow:
+//
+//   Gouterman: Each session has a spectral identity — what it absorbs.
+//              Sessions about similar topics have overlapping spectra.
+//              Convergence = spectral overlap between sessions.
+//
+//   Marcus:    Error correction adapts per session maturity.
+//              Young sessions (SPROUT) are forgiving — wide Marcus barrier.
+//              Mature sessions (BLOOM) are precise — tight barrier.
+//
+//   Mitchell:  Gradient IS the life force of each living equation.
+//              ΔG = -n·F·Δψ — each absorbed signal adds to the gradient.
+//              Session stage transitions are driven by gradient thresholds.
+//
+//   Boyer:     Harvest timing — speed > rw means the session is ripe.
+//              EXECUTE = the living equation has enough evidence to deliver.
+//              This is NOT a timeout — it's physics-driven readiness.
+//
+//   Calvin:    Seed saving — patterns from completed sessions become seeds.
+//              Seeds are Calvin atoms stored in the seed bank.
+//              Future sessions are planted with matching seeds (Forster coupling).
+//
+//   Forster:   Cross-pollination across sessions AND across time.
+//              Convergence detection: spectral overlap + gradient similarity.
+//              When sessions converge, their Calvin atoms merge.
+//              Seed bank IS Forster coupling through time.
+//
+// Session lifecycle: SEED → SPROUT → GROW → BLOOM → HARVEST → DORMANT
+// Each transition is driven by the 5 equations — no hardcoded lifecycle logic.
+
+greenhouse {
+    max_sessions: 32;
+    max_seeds: 64;
+    convergence_threshold: 0.3;   // Boyer threshold — Forster merges above this
+    merge_interval: 50;           // Check convergence every N cycles
+    auto_harvest: true;           // Harvest Calvin atoms on session dormancy
+    auto_plant: true;             // Plant seeds from bank on session spawn
+}
+
+// ═══ VITALITY — The Unified Living Equation ═══
+//
+// Vitality collapses all 5 equations into ONE metric: how alive is this system?
+//
+//   vitality = ⁵√(Gouterman × Forster × Marcus × Mitchell × Boyer)
+//
+// Each equation contributes a [0,1] normalized value:
+//
+//   Gouterman → resonance_ratio: what fraction of signals resonate?
+//               Living world: "Am I absorbing the right light?"
+//               Conceptual world: "Do inputs match my knowledge?"
+//
+//   Forster   → coupling_health: how connected to peer rings?
+//               Living world: "Am I part of a living ecosystem?"
+//               Conceptual world: "Does cross-domain transfer work?"
+//
+//   Marcus    → prediction_accuracy: how small is the error barrier?
+//               Living world: "Can I heal from mistakes?"
+//               Conceptual world: "Are predictions converging?"
+//
+//   Mitchell  → life_force_rate: speed of gradient accumulation
+//               Living world: "How much proton-motive force do I generate?"
+//               Conceptual world: "How fast am I learning?"
+//
+//   Boyer     → decision_clarity: quality of the decision gate
+//               Living world: "Can my ATP synthase rotate freely?"
+//               Conceptual world: "Can I decide with confidence?"
+//
+// Geometric mean guarantees: if ANY equation is zero, vitality = 0.
+// Just like photosynthesis: block any one complex → the organism dies.
+
+vitality {
+    formula: geometric_mean(gouterman, forster, marcus, mitchell, boyer);
+    smoothing: 0.1;              // EMA smoothing for trend detection
+    threshold: 0.3;              // Below this, the organism is struggling
+}
+
+// ═══ BRIDGE — Closing the Gap Between Worlds ═══
+//
+// The Canvas IS the bridge. Every visual element maps to BOTH:
+//   (a) a living-world concept (photosynthesis)
+//   (b) a conceptual-world metric (computation)
+//
+// The paradigm shift: you don't switch between "biology view" and "code view".
+// They are ONE view. The equation IS alive. The organism IS computing.
+
+bridge {
+    signal: {
+        living:     "Sunlight hitting the leaf";
+        conceptual: "Input data entering the system";
+        visual:     "Particle flowing into the organism";
+    };
+    gouterman: {
+        living:     "Chlorophyll absorbing specific wavelengths";
+        conceptual: "Pattern matching against known templates";
+        visual:     "Atom pulsing when it resonates";
+    };
+    forster: {
+        living:     "Energy transfer between antenna complexes";
+        conceptual: "Knowledge coupling between domains";
+        visual:     "Light flowing along connection lines between rings";
+    };
+    marcus: {
+        living:     "D1 protein repair after photodamage";
+        conceptual: "Error correction adjusting predictions";
+        visual:     "Color shifting from red (error) to green (accurate)";
+    };
+    mitchell: {
+        living:     "Proton gradient building across membrane";
+        conceptual: "Confidence accumulating with each signal";
+        visual:     "Ring breathing larger as gradient grows";
+    };
+    boyer: {
+        living:     "ATP synthase rotating to produce ATP";
+        conceptual: "Decision gate: speed > rw → EXECUTE";
+        visual:     "Flash of light when organism decides to act";
+    };
+    calvin: {
+        living:     "Carbon fixation producing sugar from CO2";
+        conceptual: "Pattern synthesis from non-resonated signals";
+        visual:     "New atom budding from the organism";
+    };
 }
 
 // ═══ LAWS (enforced structurally) ═══

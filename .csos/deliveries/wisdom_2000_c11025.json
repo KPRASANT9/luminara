@@ -1,0 +1,18 @@
+{
+  "substrate": "",
+  "decision": "EXECUTE",
+  "insight": "#!/bin/bashn# CSOS Autonomous Enterprise Operations - Interactive CLIn# Usage: ./agentic_ops.sh [monitor|devops|orchestrate|status]nnSUBDOMAIN=${1:-help}nshift || truenncase \"$SUBDOMAIN\" inn  monitor)",
+  "evidence": {
+    "gradient": 53246,
+    "speed": 1774.867,
+    "rw": 0.851,
+    "motor_strength": 0.222,
+    "delta": 11
+  },
+  "rings": {
+    "domain": { "grad": 39268, "speed": 28.190, "F": 85.5219 },
+    "cockpit": { "grad": 105797, "speed": 661.231 },
+    "organism": { "grad": 53246, "speed": 1774.867 }
+  },
+  "cycle": 11025
+}

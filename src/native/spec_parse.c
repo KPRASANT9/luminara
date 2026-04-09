@@ -109,8 +109,9 @@ int csos_spec_parse(const char *path, csos_spec_t *spec) {
     memset(spec, 0, sizeof(*spec));
 
     char line[512];
-    int in_atom = 0, in_ring = 0;
+    int in_atom = 0, in_ring = 0, in_substrate = 0;
     csos_spec_atom_t *cur_atom = NULL;
+    csos_substrate_profile_t *cur_sub = NULL;
     int brace_depth = 0;
 
     while (fgets(line, sizeof(line), f)) {
@@ -159,6 +160,45 @@ int csos_spec_parse(const char *path, csos_spec_t *spec) {
             }
             in_ring = 1;
             continue;
+        }
+
+        /* Substrate block start */
+        if (strncmp(line, "substrate ", 10) == 0 && strchr(line, '{')) {
+            if (spec->substrate_count < CSOS_MAX_SUBSTRATES) {
+                cur_sub = &spec->substrates[spec->substrate_count];
+                memset(cur_sub, 0, sizeof(*cur_sub));
+                char *name_start = line + 10;
+                char *name_end = strchr(line, '{');
+                if (name_end) {
+                    size_t len = name_end - name_start;
+                    if (len >= CSOS_NAME_LEN) len = CSOS_NAME_LEN - 1;
+                    strncpy(cur_sub->name, name_start, len);
+                    cur_sub->name[len] = 0;
+                    trim(cur_sub->name);
+                }
+                /* Defaults from Gouterman dof derivation */
+                cur_sub->rw_hint = CSOS_DEFAULT_RW;
+                cur_sub->calvin_freq_hint = CSOS_CALVIN_FREQ_MIN;
+                in_substrate = 1;
+            }
+            continue;
+        }
+
+        /* Inside substrate block */
+        if (in_substrate && cur_sub) {
+            if (strchr(line, '}') && brace_depth <= 0) {
+                spec->substrate_count++;
+                in_substrate = 0;
+                cur_sub = NULL;
+                brace_depth = 0;
+                continue;
+            }
+            if (strstr(line, "spectral:"))
+                parse_spectral(line, &cur_sub->spectral[0], &cur_sub->spectral[1]);
+            char *rw = strstr(line, "rw_hint:");
+            if (rw) cur_sub->rw_hint = strtod(rw + 8, NULL);
+            char *cf = strstr(line, "calvin_freq_hint:");
+            if (cf) cur_sub->calvin_freq_hint = (int)strtol(cf + 17, NULL, 10);
         }
 
         /* Inside atom block */
@@ -221,6 +261,17 @@ int csos_spec_parse(const char *path, csos_spec_t *spec) {
     }
 
     return 0;
+}
+
+/* ═══ SUBSTRATE LOOKUP ═══ */
+
+const csos_substrate_profile_t *csos_spec_find_substrate(
+    const csos_spec_t *spec, const char *name) {
+    for (int i = 0; i < spec->substrate_count; i++) {
+        if (strcmp(spec->substrates[i].name, name) == 0)
+            return &spec->substrates[i];
+    }
+    return NULL;
 }
 
 /* ═══ CALVIN LOADER (from .mem.json files) ═══ */
@@ -676,6 +727,7 @@ csos_membrane_t *csos_membrane_from_spec(const csos_spec_t *spec, int ring_index
     }
 
     m->atom_count = count;
-    m->rw = count > 0 ? m->atoms[0].rw : 0.833;
+    /* Dynamic RW from Gouterman: start at floor (fresh membrane has no F history) */
+    m->rw = CSOS_RW_FLOOR;
     return m;
 }

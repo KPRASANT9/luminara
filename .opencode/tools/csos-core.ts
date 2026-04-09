@@ -104,9 +104,10 @@ async function sendAsync(req: object): Promise<string> {
 export default tool({
   description:
     "THE ONLY tool. Routes ALL I/O through native ./csos binary. " +
-    "26 actions: workflow(synthesize|draft|run|run_step|configure|complete|versions|restore|jobs), " +
+    "27 actions: workflow(synthesize|draft|run|run_step|configure|complete|versions|restore|jobs), " +
     "ir(full|spec|compile|runtime), rdma(register|diffuse|status), " +
     "auth(register|list|check), source(validate|wrappers), cluster(create|status|list), " +
+    "interact=reflexive(select|command|query|operate → eco_cockpit attention signal), " +
     "command+substrate=exec, url=web, output+substrate=absorb, content=deliver, " +
     "channel+payload=egress, explain=reasoning, ring=see, key+value=remember, no args=diagnose. " +
     "NEVER use write/edit/webfetch/websearch/bash.",
@@ -156,12 +157,52 @@ export default tool({
     rdma: tool.schema.string().optional().describe("RDMA sub-action: register, diffuse, status"),
     remoteRing: tool.schema.string().optional().describe("Remote ring name for RDMA diffuse"),
     nodeId: tool.schema.string().optional().describe("Remote node ID for RDMA"),
+    // Session = Living Equation operations
+    session: tool.schema.string().optional().describe("Session sub-action: list, observe, spawn, bind, schedule, tick, tick_all"),
+    id: tool.schema.string().optional().describe("Session ID for observe/bind/schedule/tick"),
+    binding: tool.schema.string().optional().describe("External binding (e.g. 'aws:cloudwatch', 'databricks:prod')"),
+    ingress_type: tool.schema.string().optional().describe("Ingress type: command, url, pipe"),
+    ingress_source: tool.schema.string().optional().describe("Ingress source: shell command or URL"),
+    egress_type: tool.schema.string().optional().describe("Egress type: webhook, file, command"),
+    egress_target: tool.schema.string().optional().describe("Egress target: URL, file path, or command"),
+    interval: tool.schema.string().optional().describe("Schedule interval in seconds"),
+    autonomous: tool.schema.string().optional().describe("Autonomous mode: true/false"),
+    // Living equation observation
+    equate: tool.schema.string().optional().describe("Show living equation: '' for all, or ring name"),
+    // Reflexive loop: agent attention signals → eco_cockpit
+    interact: tool.schema.string().optional().describe("Interaction type: select, command, query, operate"),
+    target: tool.schema.string().optional().describe("Interaction target: ring name, session ID, or topic"),
   },
   async execute(args) {
     const req: any = {}
 
+    // Session = Living Equation
+    if (args.session) {
+      req.action = "session"; req.sub = args.session
+      if (args.id) req.id = args.id
+      if (args.substrate) req.substrate = args.substrate
+      if (args.binding) req.binding = args.binding
+      if (args.ingress_type) req.ingress_type = args.ingress_type
+      if (args.ingress_source) req.ingress_source = args.ingress_source
+      if (args.egress_type) req.egress_type = args.egress_type
+      if (args.egress_target) req.egress_target = args.egress_target
+      if (args.interval) req.interval = args.interval
+      if (args.autonomous) req.autonomous = args.autonomous
+    }
+    // Living equation view
+    else if (args.equate !== undefined) {
+      req.action = "equate"
+      if (args.equate) req.ring = args.equate
+    }
+    // Reflexive loop: agent attention → eco_cockpit
+    else if (args.interact) {
+      req.action = "interact"
+      req.type = args.interact
+      if (args.target) req.target = args.target
+      if (args.id) req.session = args.id
+    }
     // Universal IR
-    if (args.ir) {
+    else if (args.ir) {
       req.action = "ir"; req.detail = args.ir
       if (args.spec) req.spec = args.spec
       if (args.name) req.name = args.name
