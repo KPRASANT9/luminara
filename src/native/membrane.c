@@ -539,14 +539,14 @@ csos_photon_t csos_membrane_absorb(csos_membrane_t *m, double value,
         eq->mitchell = m->speed / (m->speed + 1.0);
 
         /* Boyer: decision clarity.
-         * EXECUTE=1.0 (full clarity), EXPLORE with progress=0.6,
-         * EXPLORE stagnant=0.3, ASK/STORE=0.1 (stuck). */
+         * EXECUTE=1.0 (full clarity), EXPLORE with progress/stagnant,
+         * ASK/STORE=stuck. See membrane.h for derived values. */
         switch (ph.decision) {
             case DECISION_EXECUTE: eq->boyer = 1.0; break;
-            case DECISION_EXPLORE: eq->boyer = ph.delta > 0 ? 0.6 : 0.3; break;
-            case DECISION_ASK:     eq->boyer = 0.1; break;
-            case DECISION_STORE:   eq->boyer = 0.1; break;
-            default:               eq->boyer = 0.1; break;
+            case DECISION_EXPLORE: eq->boyer = ph.delta > 0 ? CSOS_BOYER_EXPLORE_HIGH : CSOS_BOYER_EXPLORE_LOW; break;
+            case DECISION_ASK:     eq->boyer = CSOS_BOYER_STUCK; break;
+            case DECISION_STORE:   eq->boyer = CSOS_BOYER_STUCK; break;
+            default:               eq->boyer = CSOS_BOYER_STUCK; break;
         }
 
         /* Vitality = geometric mean of all 5 contributions.
@@ -1701,7 +1701,7 @@ int csos_session_tick(csos_organism_t *org, csos_session_t *s,
     /* ── 3b. DETECT BOTTLENECKS & MILESTONES ── */
     {
         /* Bottleneck: vitality dropping or stuck */
-        if (s->vitality_trend < -0.05 && s->vitality < 0.3) {
+        if (s->vitality_trend < -CSOS_VITALITY_TREND_THRESH && s->vitality < CSOS_VITALITY_LOW) {
             char bmsg[256];
             snprintf(bmsg, sizeof(bmsg), "Vitality declining: %.0f%% (trend %.2f)",
                      s->vitality * 100, s->vitality_trend);
@@ -1720,7 +1720,7 @@ int csos_session_tick(csos_organism_t *org, csos_session_t *s,
                            "Session reached BLOOM — ready to deliver", 0);
         }
         /* Resolution: vitality recovering */
-        if (s->vitality_trend > 0.05 && s->vitality > 0.5 && prev_vitality < 0.3) {
+        if (s->vitality_trend > CSOS_VITALITY_TREND_THRESH && s->vitality > CSOS_VITALITY_RECOVER && prev_vitality < CSOS_VITALITY_LOW) {
             csos_event_log(org, EVT_RESOLUTION, "scheduler", s->id,
                            "Vitality recovering — bottleneck resolved", 0);
         }
@@ -2136,8 +2136,8 @@ void csos_session_synthesize(csos_session_t *s) {
     if (syn->session_vitality_ema == 0) {
         syn->session_vitality_ema = syn->session_vitality;
     } else {
-        syn->session_vitality_ema = 0.1 * syn->session_vitality +
-                                    0.9 * syn->session_vitality_ema;
+        syn->session_vitality_ema = CSOS_VITALITY_SMOOTH * syn->session_vitality +
+                                    (1.0 - CSOS_VITALITY_SMOOTH) * syn->session_vitality_ema;
     }
 
     /* Peak tracking */

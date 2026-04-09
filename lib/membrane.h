@@ -180,6 +180,30 @@
  */
 #define CSOS_VITALITY_SMOOTH      0.1   /* EMA smoothing factor for vitality history */
 
+/* Boyer: Decision clarity scores.
+ * Derived: ATP synthase rotational states — full rotation (EXECUTE) = 1.0,
+ * partial rotation with proton flow (EXPLORE+progress) = 0.6,
+ * stalled rotation (EXPLORE stagnant) = 0.3,
+ * no rotation (ASK/STORE/stuck) = 0.1. */
+#define CSOS_BOYER_EXPLORE_HIGH   0.6
+#define CSOS_BOYER_EXPLORE_LOW    0.3
+#define CSOS_BOYER_STUCK          0.1
+
+/* Vitality: Trend detection threshold.
+ * Derived: Minimum measurable ΔpH across thylakoid membrane.
+ * Changes below 5% are noise; above 5% indicate real state shift. */
+#define CSOS_VITALITY_TREND_THRESH  0.05
+
+/* Vitality: Low threshold — organism stressed.
+ * Derived: Compensation point in photosynthesis where CO2 fixation
+ * barely exceeds photorespiration. Below 30% = declining. */
+#define CSOS_VITALITY_LOW         0.3
+
+/* Vitality: Recovery threshold — organism stabilizing.
+ * Derived: Light saturation point where photosynthetic rate plateaus.
+ * Above 50% with positive trend = recovering. */
+#define CSOS_VITALITY_RECOVER     0.5
+
 /* ═══ EQUATION CONTRIBUTIONS (per-equation vitality components) ═══
  * Each equation's normalized contribution to the living equation.
  * All values 0.0 → 1.0. Updated every absorb cycle.
