@@ -1,0 +1,18 @@
+{
+  "substrate": "",
+  "decision": "EXECUTE",
+  "insight": "# Autonomous Enterprise Operationsn## Agentic: +14.5 pts — CSOS Membrane Systemnn---nn## Why This Is #1nnThe agentic benchmarks (AgentBench +20, OSWorld +14, Terminal-Bench +20) show the **largest a",
+  "evidence": {
+    "gradient": 53228,
+    "speed": 2217.833,
+    "rw": 0.851,
+    "motor_strength": 0.167,
+    "delta": 7
+  },
+  "rings": {
+    "domain": { "grad": 39257, "speed": 40.099, "F": 82.7764 },
+    "cockpit": { "grad": 105733, "speed": 826.039 },
+    "organism": { "grad": 53228, "speed": 2217.833 }
+  },
+  "cycle": 11024
+}

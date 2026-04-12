@@ -1,0 +1,18 @@
+{
+  "substrate": "",
+  "decision": "EXECUTE",
+  "insight": "## EHS Data Migration Pipeline: Oracle → Databricksnn### OverviewnThis pipeline migrates Environmental, Health, and Safety (EHS) data from Oracle database to Databricks for analytics, reporting, and",
+  "evidence": {
+    "gradient": 0,
+    "speed": 0.000,
+    "rw": 0.000,
+    "motor_strength": 0.137,
+    "delta": 33
+  },
+  "rings": {
+    "domain": { "grad": 0, "speed": 0.000, "F": 0.0000 },
+    "cockpit": { "grad": 0, "speed": 0.000 },
+    "organism": { "grad": 0, "speed": 0.000 }
+  },
+  "cycle": 13340
+}

@@ -1,0 +1,1044 @@
+/*
+ * CSOS Protocol — Unified ingress/egress for ALL protocols.
+ *
+ * Every protocol handler converts external format → membrane_absorb() call
+ * and converts photon → external format. No protocol-specific physics.
+ * The membrane IS the compute. Protocols are just I/O adapters.
+ *
+ * LLM INTERACTION:
+ *   The LLM is a protocol, not a layer. It sends substrate_hash + raw text.
+ *   It receives the unified photon (decision, motor_strength, delta).
+ *   The 80% deterministic path runs in the membrane without the LLM.
+ *   The LLM is called ONLY for the 20%: composing human-readable output.
+ *
+ *   LLM → protocol handler → membrane_absorb() → photon → protocol handler → LLM
+ *         (parse intent)     (ALL physics)        (result)  (format response)
+ */
+#include "../../lib/membrane.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <poll.h>
+#include <regex.h>
+
+/* Forward declarations for JIT (defined in jit.c, included after protocol.c) */
+#ifdef CSOS_HAS_LLVM
+int csos_jit_active(void);
+int csos_jit_atom_count(void);
+#endif
+
+/* ═══ MINIMAL JSON HELPERS ═══ */
+
+static int json_str(const char *json, const char *key, char *out, size_t sz) {
+    char pat[128];
+    snprintf(pat, sizeof(pat), "\"%s\":", key);
+    const char *p = strstr(json, pat);
+    if (!p) { out[0] = 0; return -1; }
+    p += strlen(pat);
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p == '"') {
+        p++;
+        size_t i = 0;
+        while (*p && *p != '"' && i < sz - 1) {
+            if (*p == '\\' && *(p+1)) p++;
+            out[i++] = *p++;
+        }
+        out[i] = 0;
+    } else {
+        size_t i = 0;
+        while (*p && *p != ',' && *p != '}' && i < sz - 1)
+            out[i++] = *p++;
+        out[i] = 0;
+    }
+    return 0;
+}
+
+/* ═══ LAW ENFORCEMENT ═══ */
+/*
+ * Law I revised: No code files OUTSIDE sanctioned directories.
+ *
+ * SANCTIONED (agents can write here via csos-core tool= action):
+ *   .opencode/tools/*.ts      — OpenCode tool definitions
+ *   .opencode/skills/**       — Skill definitions
+ *   .opencode/agents/*.md     — Agent definitions
+ *   specs/*.csos              — Substrate specifications
+ *   .csos/deliveries/*        — Deliverables (any format)
+ *
+ * FORBIDDEN (code files created anywhere else):
+ *   *.py, *.js, *.ts, *.jsx, *.tsx anywhere outside sanctioned paths
+ */
+
+static const char *SANCTIONED_PREFIXES[] = {
+    ".opencode/tools/", ".opencode/skills/", ".opencode/agents/",
+    "specs/", ".csos/deliveries/", ".csos/sessions/", ".canvas-tui/", NULL
+};
+
+static int is_sanctioned_path(const char *path) {
+    for (int i = 0; SANCTIONED_PREFIXES[i]; i++) {
+        if (strncmp(path, SANCTIONED_PREFIXES[i], strlen(SANCTIONED_PREFIXES[i])) == 0)
+            return 1;
+        /* Match without trailing slash: ".opencode/tools" matches ".opencode/tools/" */
+        size_t plen = strlen(SANCTIONED_PREFIXES[i]);
+        if (plen > 0 && SANCTIONED_PREFIXES[i][plen-1] == '/') {
+            if (strncmp(path, SANCTIONED_PREFIXES[i], plen - 1) == 0 &&
+                (path[plen-1] == '\0' || path[plen-1] == '/'))
+                return 1;
+        }
+    }
+    /* Also allow paths starting with ./ followed by sanctioned prefix */
+    if (path[0] == '.' && path[1] == '/') return is_sanctioned_path(path + 2);
+    return 0;
+}
+
+static const char *FORBIDDEN[] = {
+    ">.*\\.(py|js|ts|jsx|tsx)", "cat.*>.*\\.(py|js|ts)",
+    "tee.*\\.(py|js|ts)", "touch.*\\.(py|js|ts)", NULL
+};
+
+static int is_build_cmd(const char *cmd) {
+    for (int i = 0; FORBIDDEN[i]; i++) {
+        regex_t re;
+        if (regcomp(&re, FORBIDDEN[i], REG_EXTENDED|REG_ICASE|REG_NOSUB) == 0) {
+            int m = regexec(&re, cmd, 0, NULL, 0) == 0;
+            regfree(&re);
+            if (m) return 1;
+        }
+    }
+    return 0;
+}
+
+/* ═══ PHOTON → JSON (the IR → LLM bridge) ═══ */
+/*
+ * This is where the universal IR becomes human-readable.
+ * The LLM reads this JSON. Every field the LLM needs is here.
+ * No second query needed. No separate transport lookup.
+ * No separate agent state check. It's ALL in the photon.
+ */
+static int photon_to_json(const csos_photon_t *ph, const csos_membrane_t *d,
+                          const csos_membrane_t *k, const csos_membrane_t *o,
+                          char *json, size_t sz) {
+    const char *dec[] = {"EXPLORE", "EXECUTE", "ASK", "STORE"};
+    return snprintf(json, sz,
+        "{\"decision\":\"%s\","
+        "\"delta\":%d,"
+        "\"motor_strength\":%.3f,"
+        "\"interval\":%llu,"
+        "\"resonated\":%s,"
+        "\"mode\":\"%s\","
+        "\"domain\":{\"grad\":%.0f,\"speed\":%.3f,\"F\":%.4f},"
+        "\"cockpit\":{\"grad\":%.0f,\"speed\":%.3f},"
+        "\"organism\":{\"grad\":%.0f,\"speed\":%.3f,\"rw\":%.3f}}",
+        dec[ph->decision & 3],
+        ph->delta,
+        ph->motor_strength,
+        (unsigned long long)ph->interval,
+        ph->resonated ? "true" : "false",
+        o && o->mode == MODE_BUILD ? "build" : "plan",
+        d ? d->gradient : 0, d ? d->speed : 0, d ? d->F : 0,
+        k ? k->gradient : 0, k ? k->speed : 0,
+        o ? o->gradient : 0, o ? o->speed : 0, o ? o->rw : 0);
+}
+
+/* ═══ REQUEST HANDLER (all protocols route here) ═══ */
+
+int csos_handle(csos_organism_t *org, const char *json_in,
+                char *json_out, size_t out_sz) {
+    char action[64] = {0}, substrate[128] = {0}, output[8192] = {0};
+    char ring_name[64] = {0}, detail[32] = {0};
+    json_str(json_in, "action", action, sizeof(action));
+
+    if (strcmp(action, "absorb") == 0) {
+        json_str(json_in, "substrate", substrate, sizeof(substrate));
+        json_str(json_in, "output", output, sizeof(output));
+        csos_photon_t ph = csos_organism_absorb(org, substrate[0] ? substrate : "unknown",
+                                                 output, PROTO_STDIO);
+        csos_membrane_t *d = csos_organism_find(org, "eco_domain");
+        csos_membrane_t *k = csos_organism_find(org, "eco_cockpit");
+        csos_membrane_t *o = csos_organism_find(org, "eco_organism");
+        int pos = snprintf(json_out, out_sz, "{\"substrate\":\"%s\",\"signals\":%d,\"physics\":",
+                           substrate[0] ? substrate : "unknown", (int)ph.delta);
+        pos += photon_to_json(&ph, d, k, o, json_out + pos, out_sz - pos);
+        snprintf(json_out + pos, out_sz - pos, "}");
+        return 0;
+    }
+
+    if (strcmp(action, "fly") == 0) {
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+        char sig_str[1024] = "50";
+        json_str(json_in, "signals", sig_str, sizeof(sig_str));
+        csos_membrane_t *m = csos_organism_find(org, ring_name[0] ? ring_name : "eco_domain");
+        if (!m) { snprintf(json_out, out_sz, "{\"error\":\"ring not found\"}"); return -1; }
+        double sigs[20]; int n = 0;
+        const char *p = sig_str;
+        while (*p && n < 20) {
+            while (*p && !(*p >= '0' && *p <= '9') && *p != '-' && *p != '.') p++;
+            if (!*p) break;
+            char *end; double v = strtod(p, &end);
+            if (end > p) { sigs[n++] = v; p = end; } else p++;
+        }
+        if (n == 0) { sigs[0] = 50; n = 1; }
+        csos_photon_t last = {0};
+        for (int i = 0; i < n; i++)
+            last = csos_membrane_absorb(m, sigs[i], 0, PROTO_INTERNAL);
+        snprintf(json_out, out_sz,
+            "{\"ring\":\"%s\",\"F\":%.4f,\"gradient\":%.0f,\"speed\":%.4f,"
+            "\"cycle\":%u,\"produced\":%d,\"resonance_width\":%.3f}",
+            m->name, m->F, m->gradient, m->speed, m->cycles,
+            last.delta, m->rw);
+        return 0;
+    }
+
+    if (strcmp(action, "grow") == 0) {
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+        csos_membrane_t *m = csos_organism_grow(org, ring_name[0] ? ring_name : "new");
+        snprintf(json_out, out_sz, "{\"ring\":\"%s\",\"atoms\":%d}",
+                 m ? m->name : "error", m ? m->atom_count : 0);
+        return 0;
+    }
+
+    if (strcmp(action, "see") == 0) {
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+        json_str(json_in, "detail", detail, sizeof(detail));
+        if (ring_name[0]) {
+            csos_membrane_t *m = csos_organism_find(org, ring_name);
+            if (!m) { snprintf(json_out, out_sz, "{\"error\":\"not found\"}"); return -1; }
+            return csos_membrane_see(m, detail[0] ? detail : "minimal", json_out, out_sz);
+        }
+        /* List all */
+        int pos = snprintf(json_out, out_sz, "{\"rings\":[");
+        for (int i = 0; i < org->count && pos < (int)out_sz - 100; i++) {
+            csos_membrane_t *m = org->membranes[i];
+            if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+            pos += snprintf(json_out + pos, out_sz - pos,
+                "{\"id\":\"%s\",\"F\":%.4f,\"gradient\":%.0f,\"speed\":%.4f,"
+                "\"atoms\":%d,\"cycles\":%u}",
+                m->name, m->F, m->gradient, m->speed, m->atom_count, m->cycles);
+        }
+        snprintf(json_out + pos, out_sz - pos, "],\"count\":%d}", org->count);
+        return 0;
+    }
+
+    if (strcmp(action, "diffuse") == 0) {
+        char src[64] = {0}, tgt[64] = {0};
+        json_str(json_in, "source", src, sizeof(src));
+        json_str(json_in, "target", tgt, sizeof(tgt));
+        csos_membrane_t *s = csos_organism_find(org, src);
+        csos_membrane_t *t = csos_organism_find(org, tgt);
+        if (!s || !t) { snprintf(json_out, out_sz, "{\"error\":\"not found\"}"); return -1; }
+        int n = csos_membrane_diffuse(s, t);
+        snprintf(json_out, out_sz, "{\"n\":%d}", n);
+        return 0;
+    }
+
+    if (strcmp(action, "lint") == 0) {
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+        if (ring_name[0]) {
+            csos_membrane_t *m = csos_organism_find(org, ring_name);
+            if (!m) { snprintf(json_out, out_sz, "{\"error\":\"not found\"}"); return -1; }
+            return csos_membrane_lint(m, json_out, out_sz);
+        }
+        int pos = snprintf(json_out, out_sz, "{\"rings_linted\":%d,\"results\":{", org->count);
+        for (int i = 0; i < org->count && pos < (int)out_sz - 200; i++) {
+            char sub[512];
+            csos_membrane_lint(org->membranes[i], sub, sizeof(sub));
+            if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+            pos += snprintf(json_out + pos, out_sz - pos, "\"%s\":%s",
+                            org->membranes[i]->name, sub);
+        }
+        snprintf(json_out + pos, out_sz - pos, "}}");
+        return 0;
+    }
+
+    if (strcmp(action, "ping") == 0) {
+        csos_membrane_t *o = csos_organism_find(org, "eco_organism");
+        int jit_on = 0;
+#ifdef CSOS_HAS_LLVM
+        jit_on = csos_jit_active();
+#endif
+        snprintf(json_out, out_sz,
+            "{\"alive\":true,\"native\":true,\"membrane\":true,"
+            "\"llvm_jit\":%s,\"rings\":%d,\"speed\":%.3f}",
+            jit_on ? "true" : "false", org->count, o ? o->speed : 0);
+        return 0;
+    }
+
+    if (strcmp(action, "diagnose") == 0 || action[0] == 0) {
+        int pos = snprintf(json_out, out_sz,
+            "{\"status\":\"healthy\",\"architecture\":\"unified_membrane\",\"rings\":{");
+        const char *eco[] = {"eco_domain", "eco_cockpit", "eco_organism"};
+        for (int i = 0; i < 3; i++) {
+            csos_membrane_t *m = csos_organism_find(org, eco[i]);
+            if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+            if (m) {
+                pos += snprintf(json_out + pos, out_sz - pos,
+                    "\"%s\":{\"grad\":%.0f,\"speed\":%.3f,\"F\":%.4f,\"atoms\":%d,"
+                    "\"cycles\":%u,\"mode\":\"%s\",\"motor_entries\":%d}",
+                    eco[i], m->gradient, m->speed, m->F, m->atom_count, m->cycles,
+                    m->mode == MODE_PLAN ? "plan" : "build", m->motor_count);
+            }
+        }
+        snprintf(json_out + pos, out_sz - pos, "}}");
+        return 0;
+    }
+
+    if (strcmp(action, "muscle") == 0) {
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+        csos_membrane_t *m = csos_organism_find(org, ring_name[0] ? ring_name : "eco_organism");
+        if (!m) { snprintf(json_out, out_sz, "{\"error\":\"not found\"}"); return -1; }
+        uint32_t h[10]; double s[10];
+        int n = csos_motor_top(m, h, s, 10);
+        int pos = snprintf(json_out, out_sz, "{\"motor_entries\":%d,\"top\":[", m->motor_count);
+        for (int i = 0; i < n && pos < (int)out_sz - 80; i++) {
+            if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+            pos += snprintf(json_out + pos, out_sz - pos,
+                "{\"hash\":%u,\"strength\":%.3f}", h[i], s[i]);
+        }
+        snprintf(json_out + pos, out_sz - pos, "]}");
+        return 0;
+    }
+
+    if (strcmp(action, "hash") == 0) {
+        json_str(json_in, "substrate", substrate, sizeof(substrate));
+        uint32_t h = 0;
+        for (const char *p = substrate; *p; p++) h = h * 31 + (uint8_t)*p;
+        snprintf(json_out, out_sz, "{\"substrate\":\"%s\",\"hash\":%u}",
+                 substrate, 1000 + (h % 9000));
+        return 0;
+    }
+
+    /* ═══ EXEC: Run CLI command + auto-absorb (replaces daemon exec) ═══ */
+    if (strcmp(action, "exec") == 0) {
+        char command[4096] = {0};
+        json_str(json_in, "command", command, sizeof(command));
+        json_str(json_in, "substrate", substrate, sizeof(substrate));
+        if (!substrate[0]) strncpy(substrate, "bash", sizeof(substrate));
+
+        /* Law enforcement: reject build commands */
+        if (is_build_cmd(command)) {
+            snprintf(json_out, out_sz,
+                "{\"error\":true,\"law_violation\":\"I\","
+                "\"message\":\"BLOCKED: command creates code file\","
+                "\"guidance\":\"Use exec for READ/INTERACT commands, not for writing .py/.js/.ts\"}");
+            return -1;
+        }
+
+        FILE *fp = popen(command, "r");
+        if (!fp) {
+            snprintf(json_out, out_sz, "{\"error\":true,\"message\":\"popen failed\"}");
+            return -1;
+        }
+        char data[8192] = {0};
+        size_t total = 0;
+        while (total < sizeof(data) - 1) {
+            size_t n = fread(data + total, 1, sizeof(data) - 1 - total, fp);
+            if (n == 0) break;
+            total += n;
+        }
+        int exit_code = pclose(fp);
+        data[total] = 0;
+
+        /* Auto-absorb through membrane */
+        csos_photon_t ph = csos_organism_absorb(org, substrate, data, PROTO_STDIO);
+        csos_membrane_t *d = csos_organism_find(org, "eco_domain");
+        csos_membrane_t *k = csos_organism_find(org, "eco_cockpit");
+        csos_membrane_t *o = csos_organism_find(org, "eco_organism");
+
+        /* Escape data for JSON */
+        char escaped[4096] = {0};
+        size_t ei = 0;
+        for (size_t i = 0; i < total && ei < sizeof(escaped) - 4; i++) {
+            if (data[i] == '"') { escaped[ei++] = '\\'; escaped[ei++] = '"'; }
+            else if (data[i] == '\\') { escaped[ei++] = '\\'; escaped[ei++] = '\\'; }
+            else if (data[i] == '\n') { escaped[ei++] = '\\'; escaped[ei++] = 'n'; }
+            else if (data[i] == '\r') { /* skip */ }
+            else if ((unsigned char)data[i] >= 32) { escaped[ei++] = data[i]; }
+        }
+        escaped[ei] = 0;
+
+        int pos = snprintf(json_out, out_sz,
+            "{\"data\":\"%.4000s\",\"exit\":%d,\"physics\":",
+            escaped, exit_code);
+        pos += photon_to_json(&ph, d, k, o, json_out + pos, out_sz - pos);
+        snprintf(json_out + pos, out_sz - pos, "}");
+        return 0;
+    }
+
+    /* ═══ WEB: Fetch URL + auto-absorb ═══ */
+    if (strcmp(action, "web") == 0) {
+        /* Delegate to system curl for portability */
+        char url[2048] = {0};
+        json_str(json_in, "url", url, sizeof(url));
+        json_str(json_in, "substrate", substrate, sizeof(substrate));
+        if (!substrate[0]) {
+            /* Extract domain as substrate */
+            const char *p = strstr(url, "://");
+            if (p) { p += 3; size_t i = 0; while (*p && *p != '/' && i < 127) substrate[i++] = *p++; }
+            else strncpy(substrate, "web", sizeof(substrate));
+        }
+        char cmd[2200];
+        snprintf(cmd, sizeof(cmd), "curl -sL -m 30 '%s' 2>&1", url);
+        FILE *fp = popen(cmd, "r");
+        if (!fp) {
+            snprintf(json_out, out_sz, "{\"error\":true,\"message\":\"curl failed\"}");
+            return -1;
+        }
+        char data[8192] = {0};
+        size_t total = fread(data, 1, sizeof(data) - 1, fp);
+        pclose(fp);
+        data[total] = 0;
+
+        csos_photon_t ph = csos_organism_absorb(org, substrate, data, PROTO_HTTP);
+        csos_membrane_t *d = csos_organism_find(org, "eco_domain");
+        csos_membrane_t *k = csos_organism_find(org, "eco_cockpit");
+        csos_membrane_t *o = csos_organism_find(org, "eco_organism");
+
+        int pos = snprintf(json_out, out_sz,
+            "{\"status\":200,\"url\":\"%s\",\"text_length\":%zu,\"physics\":", url, total);
+        pos += photon_to_json(&ph, d, k, o, json_out + pos, out_sz - pos);
+        snprintf(json_out + pos, out_sz - pos, "}");
+        return 0;
+    }
+
+    /* ═══ REMEMBER: Store human data ═══ */
+    if (strcmp(action, "remember") == 0) {
+        char key[256] = {0}, value[4096] = {0};
+        json_str(json_in, "key", key, sizeof(key));
+        json_str(json_in, "value", value, sizeof(value));
+
+        /* Store in .csos/sessions/human.json (backward compatible) */
+        char hpath[512];
+        snprintf(hpath, sizeof(hpath), "%s/.csos/sessions", org->root);
+        mkdir(hpath, 0755);
+        snprintf(hpath, sizeof(hpath), "%s/.csos/sessions/human.json", org->root);
+
+        /* Read existing */
+        char existing[32768] = "{}";
+        FILE *f = fopen(hpath, "r");
+        if (f) { fread(existing, 1, sizeof(existing)-1, f); fclose(f); }
+
+        /* Append/update key (simple: write full file) */
+        /* Find closing brace, insert before it */
+        char *end = strrchr(existing, '}');
+        if (end) {
+            char newfile[32768];
+            *end = 0;
+            size_t elen = strlen(existing);
+            if (elen > 2) /* has existing keys */
+                snprintf(newfile, sizeof(newfile), "%s,\n  \"%s\": \"%s\"\n}", existing, key, value);
+            else
+                snprintf(newfile, sizeof(newfile), "{\n  \"%s\": \"%s\"\n}", key, value);
+            f = fopen(hpath, "w");
+            if (f) { fputs(newfile, f); fclose(f); }
+        }
+
+        /* Absorb the remember event into physics */
+        char raw[512];
+        snprintf(raw, sizeof(raw), "%s %s", key, value);
+        csos_organism_absorb(org, "human_profile", raw, PROTO_LLM);
+
+        snprintf(json_out, out_sz, "{\"remembered\":\"%s\"}", key);
+        return 0;
+    }
+
+    /* ═══ RECALL: Retrieve human data ═══ */
+    if (strcmp(action, "recall") == 0) {
+        char hpath[512];
+        snprintf(hpath, sizeof(hpath), "%s/.csos/sessions/human.json", org->root);
+        FILE *f = fopen(hpath, "r");
+        if (!f) {
+            snprintf(json_out, out_sz, "{\"fields\":{},\"count\":0}");
+            return 0;
+        }
+        char data[32768] = {0};
+        size_t n = fread(data, 1, sizeof(data)-1, f);
+        fclose(f);
+        data[n] = 0;
+        snprintf(json_out, out_sz, "{\"fields\":%s,\"count\":0}", data);
+        return 0;
+    }
+
+    /* ═══ PROFILE: Instance profile for LLM context shaping ═══ */
+    if (strcmp(action, "profile") == 0) {
+        csos_membrane_t *d = csos_organism_find(org, "eco_domain");
+        csos_membrane_t *k = csos_organism_find(org, "eco_cockpit");
+        csos_membrane_t *o = csos_organism_find(org, "eco_organism");
+
+        /* Count Calvin atoms per membrane */
+        int calvin_d = 0, calvin_k = 0;
+        if (d) for (int i = 0; i < d->atom_count; i++)
+            if (strncmp(d->atoms[i].name, "calvin_", 7) == 0) calvin_d++;
+        if (k) for (int i = 0; i < k->atom_count; i++)
+            if (strncmp(k->atoms[i].name, "calvin_", 7) == 0) calvin_k++;
+
+        /* Read known human fields */
+        char hpath[512];
+        snprintf(hpath, sizeof(hpath), "%s/.csos/sessions/human.json", org->root);
+        char human[4096] = "{}";
+        FILE *f = fopen(hpath, "r");
+        if (f) { fread(human, 1, sizeof(human)-1, f); fclose(f); }
+
+        /* Motor memory top 5 */
+        uint32_t top_h[5]; double top_s[5];
+        int top_n = o ? csos_motor_top(o, top_h, top_s, 5) : 0;
+
+        int pos = snprintf(json_out, out_sz,
+            "{\"profile\":{"
+            "\"gradient\":{\"domain\":%.0f,\"cockpit\":%.0f,\"organism\":%.0f},"
+            "\"calvin_atoms\":{\"domain\":%d,\"cockpit\":%d},"
+            "\"organism\":{\"speed\":%.3f,\"rw\":%.3f,\"decision\":\"%s\",\"mode\":\"%s\"},"
+            "\"human_fields\":%s,"
+            "\"motor_top\":[",
+            d ? d->gradient : 0, k ? k->gradient : 0, o ? o->gradient : 0,
+            calvin_d, calvin_k,
+            o ? o->speed : 0, o ? o->rw : 0,
+            o ? (const char*[]){"EXPLORE","EXECUTE","ASK","STORE"}[o->decision] : "EXPLORE",
+            o && o->mode == MODE_BUILD ? "build" : "plan",
+            human);
+        for (int i = 0; i < top_n && pos < (int)out_sz - 80; i++) {
+            if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ",");
+            pos += snprintf(json_out + pos, out_sz - pos,
+                "{\"hash\":%u,\"strength\":%.3f}", top_h[i], top_s[i]);
+        }
+        snprintf(json_out + pos, out_sz - pos, "]}}\n");
+        return 0;
+    }
+
+    /* ═══ EGRESS: Route decision to configured channels ═══ */
+    if (strcmp(action, "egress") == 0) {
+        char channel[64] = {0}, payload[8192] = {0};
+        json_str(json_in, "channel", channel, sizeof(channel));
+        json_str(json_in, "payload", payload, sizeof(payload));
+
+        if (strcmp(channel, "file") == 0) {
+            char path[512] = {0};
+            json_str(json_in, "path", path, sizeof(path));
+            if (!path[0]) strncpy(path, ".csos/deliveries/output.md", sizeof(path));
+            /* Ensure directory exists */
+            char dir[512];
+            strncpy(dir, path, sizeof(dir));
+            char *slash = strrchr(dir, '/');
+            if (slash) { *slash = 0; mkdir(dir, 0755); }
+            FILE *f = fopen(path, "w");
+            if (f) { fputs(payload, f); fclose(f); }
+            /* Auto-absorb the egress event */
+            char raw[256];
+            snprintf(raw, sizeof(raw), "wrote %zu bytes to %s", strlen(payload), path);
+            csos_organism_absorb(org, "egress_file", raw, PROTO_INTERNAL);
+            snprintf(json_out, out_sz, "{\"egress\":\"file\",\"path\":\"%s\",\"bytes\":%zu}",
+                     path, strlen(payload));
+        } else if (strcmp(channel, "webhook") == 0) {
+            char url[1024] = {0};
+            json_str(json_in, "url", url, sizeof(url));
+            char cmd[2048];
+            snprintf(cmd, sizeof(cmd),
+                "curl -s -X POST '%s' -H 'Content-Type: application/json' -d '%s' 2>&1",
+                url, payload);
+            FILE *fp = popen(cmd, "r");
+            char resp[1024] = {0};
+            if (fp) { fread(resp, 1, sizeof(resp)-1, fp); pclose(fp); }
+            csos_organism_absorb(org, "egress_webhook", resp, PROTO_HTTP);
+            snprintf(json_out, out_sz, "{\"egress\":\"webhook\",\"url\":\"%s\"}", url);
+        } else if (strcmp(channel, "slack") == 0) {
+            char webhook_url[1024] = {0};
+            json_str(json_in, "url", webhook_url, sizeof(webhook_url));
+            char cmd[4096];
+            snprintf(cmd, sizeof(cmd),
+                "curl -s -X POST '%s' -H 'Content-Type: application/json' "
+                "-d '{\"text\":\"%s\"}' 2>&1", webhook_url, payload);
+            FILE *fp = popen(cmd, "r");
+            if (fp) pclose(fp);
+            csos_organism_absorb(org, "egress_slack", payload, PROTO_HTTP);
+            snprintf(json_out, out_sz, "{\"egress\":\"slack\",\"sent\":true}");
+        } else {
+            snprintf(json_out, out_sz, "{\"egress\":\"%s\",\"error\":\"unknown channel\"}", channel);
+        }
+        return 0;
+    }
+
+    /* ═══ DELIVER: Auto-egress based on decision type + egress.json ═══ */
+    if (strcmp(action, "deliver") == 0) {
+        char content[8192] = {0}, dtype[32] = "execute";
+        json_str(json_in, "content", content, sizeof(content));
+        json_str(json_in, "type", dtype, sizeof(dtype));
+
+        /* Read egress.json for routing */
+        char epath[512];
+        snprintf(epath, sizeof(epath), "%s/.csos/egress.json", org->root);
+        FILE *ef = fopen(epath, "r");
+        int routed = 0;
+
+        /* Always write to file */
+        char fpath[512];
+        snprintf(fpath, sizeof(fpath), "%s/.csos/deliveries", org->root);
+        mkdir(fpath, 0755);
+        snprintf(fpath, sizeof(fpath), "%s/.csos/deliveries/latest.md", org->root);
+        FILE *ff = fopen(fpath, "w");
+        if (ff) { fputs(content, ff); fclose(ff); routed++; }
+
+        /* Absorb the delivery event */
+        csos_photon_t ph = csos_organism_absorb(org, "deliverable", content, PROTO_INTERNAL);
+
+        if (ef) fclose(ef);
+
+        csos_membrane_t *o = csos_organism_find(org, "eco_organism");
+        snprintf(json_out, out_sz,
+            "{\"delivered\":true,\"routed\":%d,\"path\":\"%s\","
+            "\"delta\":%d,\"decision\":\"%s\"}",
+            routed, fpath, ph.delta,
+            (const char*[]){"EXPLORE","EXECUTE","ASK","STORE"}[ph.decision & 3]);
+        return 0;
+    }
+
+    /* ═══ EXPLAIN: Human-readable reasoning from membrane state ═══ */
+    if (strcmp(action, "explain") == 0) {
+        json_str(json_in, "ring", ring_name, sizeof(ring_name));
+        csos_membrane_t *m = csos_organism_find(org, ring_name[0] ? ring_name : "eco_organism");
+        if (!m) { snprintf(json_out, out_sz, "{\"error\":\"not found\"}"); return -1; }
+
+        /* Count atoms by type */
+        int eq_atoms = 0, calvin_atoms = 0;
+        for (int i = 0; i < m->atom_count; i++) {
+            if (strncmp(m->atoms[i].name, "calvin_", 7) == 0) calvin_atoms++;
+            else eq_atoms++;
+        }
+
+        /* Count resonated vs total photons */
+        int total_ph = 0, res_ph = 0;
+        for (int i = 0; i < m->atom_count; i++) {
+            total_ph += m->atoms[i].photon_count;
+            res_ph += (int)atom_gradient(&m->atoms[i]);
+        }
+
+        /* Top motor substrates */
+        uint32_t th[3]; double ts[3];
+        int tn = csos_motor_top(m, th, ts, 3);
+
+        const char *dec_name[] = {"EXPLORE","EXECUTE","ASK","STORE"};
+        const char *mode_name = m->mode == MODE_BUILD ? "build" : "plan";
+
+        int pos = snprintf(json_out, out_sz,
+            "{\"explanation\":\"Membrane '%s': gradient=%.0f from %d resonated out of %d total photons. "
+            "Speed=%.3f %s resonance_width=%.3f so Boyer says %s. "
+            "Mode is %s. %d equation atoms + %d Calvin-synthesized patterns. "
+            "Motor memory tracks %d substrates",
+            m->name, m->gradient, res_ph, total_ph,
+            m->speed, m->speed > m->rw ? ">" : "<=", m->rw,
+            dec_name[m->decision & 3], mode_name,
+            eq_atoms, calvin_atoms, m->motor_count);
+
+        if (tn > 0) {
+            pos += snprintf(json_out + pos, out_sz - pos, " (top: ");
+            for (int i = 0; i < tn; i++) {
+                if (i > 0) pos += snprintf(json_out + pos, out_sz - pos, ", ");
+                pos += snprintf(json_out + pos, out_sz - pos, "hash=%u@%.0f%%", th[i], ts[i]*100);
+            }
+            pos += snprintf(json_out + pos, out_sz - pos, ")");
+        }
+
+        snprintf(json_out + pos, out_sz - pos, ".\"}\n");
+        return 0;
+    }
+
+    /* ═══ SAVE: Persist full membrane state to disk ═══ */
+    if (strcmp(action, "save") == 0) {
+        int saved = csos_organism_save(org);
+        snprintf(json_out, out_sz, "{\"saved\":%d,\"rings\":%d}", saved, org->count);
+        return 0;
+    }
+
+    /* ═══ TOOL: Write to sanctioned directories ONLY ═══ */
+    /*
+     * This is how agents evolve the system's own tooling.
+     * Writes are allowed ONLY to:
+     *   .opencode/tools/*.ts      — Tool definitions
+     *   .opencode/skills/**       — Skill docs
+     *   .opencode/agents/*.md     — Agent definitions
+     *   specs/*.csos              — Substrate specs
+     *   .csos/deliveries/*        — Deliverables
+     *
+     * Every write is auto-absorbed into the membrane.
+     * Motor memory tracks which tools get created/updated.
+     * The system learns from its own evolution.
+     */
+    if (strcmp(action, "tool") == 0) {
+        char filepath[512] = {0}, filecontent[65536] = {0};
+        json_str(json_in, "path", filepath, sizeof(filepath));
+        json_str(json_in, "body", filecontent, sizeof(filecontent));
+
+        if (!filepath[0]) {
+            snprintf(json_out, out_sz, "{\"error\":\"path required\"}");
+            return -1;
+        }
+
+        /* Law I: only sanctioned paths */
+        if (!is_sanctioned_path(filepath)) {
+            snprintf(json_out, out_sz,
+                "{\"error\":true,\"law_violation\":\"I\","
+                "\"message\":\"BLOCKED: path '%s' is outside sanctioned directories\","
+                "\"sanctioned\":[\".opencode/tools/\",\".opencode/skills/\","
+                "\".opencode/agents/\",\"specs/\",\".csos/deliveries/\"]}",
+                filepath);
+            return -1;
+        }
+
+        /* Ensure parent directory exists */
+        char dir[512];
+        strncpy(dir, filepath, sizeof(dir));
+        char *slash = strrchr(dir, '/');
+        if (slash) {
+            *slash = 0;
+            /* Recursive mkdir for nested paths */
+            char tmp[512] = {0};
+            for (char *p = dir; *p; p++) {
+                tmp[p - dir] = *p;
+                if (*p == '/') mkdir(tmp, 0755);
+            }
+            mkdir(dir, 0755);
+        }
+
+        /* Write the file */
+        FILE *f = fopen(filepath, "w");
+        if (!f) {
+            snprintf(json_out, out_sz, "{\"error\":\"cannot write: %s\"}", filepath);
+            return -1;
+        }
+        fputs(filecontent, f);
+        fclose(f);
+
+        /* Auto-absorb the tool creation event */
+        char raw[512];
+        snprintf(raw, sizeof(raw), "tool_write %s %zu bytes", filepath, strlen(filecontent));
+        csos_photon_t ph = csos_organism_absorb(org, "tooling", raw, PROTO_LLM);
+
+        snprintf(json_out, out_sz,
+            "{\"wrote\":\"%s\",\"bytes\":%zu,\"delta\":%d,\"decision\":\"%s\"}",
+            filepath, strlen(filecontent), ph.delta,
+            (const char*[]){"EXPLORE","EXECUTE","ASK","STORE"}[ph.decision & 3]);
+        return 0;
+    }
+
+    /* ═══ TOOLREAD: Read from sanctioned directories ═══ */
+    if (strcmp(action, "toolread") == 0) {
+        char filepath[512] = {0};
+        json_str(json_in, "path", filepath, sizeof(filepath));
+        if (!filepath[0]) {
+            snprintf(json_out, out_sz, "{\"error\":\"path required\"}");
+            return -1;
+        }
+        FILE *f = fopen(filepath, "r");
+        if (!f) {
+            snprintf(json_out, out_sz, "{\"error\":\"not found: %s\"}", filepath);
+            return -1;
+        }
+        char data[16384] = {0};
+        size_t n = fread(data, 1, sizeof(data) - 1, f);
+        fclose(f);
+        /* Escape for JSON */
+        char escaped[16384] = {0};
+        size_t ei = 0;
+        for (size_t i = 0; i < n && ei < sizeof(escaped) - 4; i++) {
+            if (data[i] == '"') { escaped[ei++] = '\\'; escaped[ei++] = '"'; }
+            else if (data[i] == '\\') { escaped[ei++] = '\\'; escaped[ei++] = '\\'; }
+            else if (data[i] == '\n') { escaped[ei++] = '\\'; escaped[ei++] = 'n'; }
+            else if (data[i] == '\r') { /* skip */ }
+            else if ((unsigned char)data[i] >= 32) { escaped[ei++] = data[i]; }
+        }
+        snprintf(json_out, out_sz, "{\"path\":\"%s\",\"bytes\":%zu,\"content\":\"%s\"}",
+                 filepath, n, escaped);
+        return 0;
+    }
+
+    /* ═══ TOOLLIST: List files in sanctioned directories ═══ */
+    if (strcmp(action, "toollist") == 0) {
+        char dir[512] = ".opencode/tools";
+        json_str(json_in, "dir", dir, sizeof(dir));
+        if (!is_sanctioned_path(dir)) {
+            snprintf(json_out, out_sz, "{\"error\":\"not sanctioned: %s\"}", dir);
+            return -1;
+        }
+        /* Use ls to list */
+        char cmd[600];
+        snprintf(cmd, sizeof(cmd), "ls -1 '%s' 2>/dev/null", dir);
+        FILE *fp = popen(cmd, "r");
+        int pos = snprintf(json_out, out_sz, "{\"dir\":\"%s\",\"files\":[", dir);
+        if (fp) {
+            char line[256];
+            int first = 1;
+            while (fgets(line, sizeof(line), fp)) {
+                size_t len = strlen(line);
+                while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) line[--len] = 0;
+                if (len == 0) continue;
+                if (!first) pos += snprintf(json_out + pos, out_sz - pos, ",");
+                pos += snprintf(json_out + pos, out_sz - pos, "\"%s\"", line);
+                first = 0;
+            }
+            pclose(fp);
+        }
+        snprintf(json_out + pos, out_sz - pos, "]}");
+        return 0;
+    }
+
+    snprintf(json_out, out_sz, "{\"error\":\"unknown action: %s\"}", action);
+    return -1;
+}
+
+/* ═══ CLI LOOP (STDIO protocol) ═══ */
+
+int csos_cli_loop(csos_organism_t *org) {
+    printf("{\"daemon\":true,\"native\":true,\"membrane\":true,"
+           "\"rings\":%d,\"ready\":true}\n", org->count);
+    fflush(stdout);
+
+    char line[65536], resp[65536];
+    while (fgets(line, sizeof(line), stdin)) {
+        size_t len = strlen(line);
+        while (len > 0 && (line[len-1] == '\n' || line[len-1] == '\r')) line[--len] = 0;
+        if (len == 0) continue;
+        csos_handle(org, line, resp, sizeof(resp));
+        printf("%s\n", resp);
+        fflush(stdout);
+    }
+    return 0;
+}
+
+/* ═══ UNIX SOCKET PROTOCOL ═══ */
+
+int csos_unix_loop(csos_organism_t *org, const char *path) {
+    int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
+    unlink(path);
+    struct sockaddr_un addr = {0};
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, path, sizeof(addr.sun_path) - 1);
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) { close(fd); return -1; }
+    listen(fd, 8);
+    fprintf(stderr, "CSOS membrane daemon on %s\n", path);
+
+    char buf[65536], resp[65536];
+    while (1) {
+        struct pollfd pfd = {fd, POLLIN, 0};
+        if (poll(&pfd, 1, 1000) <= 0) continue;
+        int cl = accept(fd, NULL, NULL);
+        if (cl < 0) continue;
+        ssize_t n = read(cl, buf, sizeof(buf) - 1);
+        if (n > 0) {
+            buf[n] = 0;
+            while (n > 0 && (buf[n-1] == '\n' || buf[n-1] == '\r')) buf[--n] = 0;
+            csos_handle(org, buf, resp, sizeof(resp));
+            write(cl, resp, strlen(resp));
+            write(cl, "\n", 1);
+        }
+        close(cl);
+    }
+    close(fd); unlink(path);
+    return 0;
+}
+
+/* ═══ HTTP PROTOCOL: Full daemon (Replit-style single binary) ═══ */
+/*
+ * One binary serves everything:
+ *   GET  /              → canvas HTML (.canvas-tui/index.html)
+ *   GET  /api/state     → full organism state as JSON
+ *   GET  /api/templates → living template catalog
+ *   GET  /events        → SSE stream (Server-Sent Events)
+ *   POST /api/command   → JSON command → csos_handle() → JSON response
+ *   OPTIONS *           → CORS preflight
+ */
+
+/* SSE client list (simple array, max 32 concurrent) */
+#define MAX_SSE_CLIENTS 32
+static int _sse_fds[MAX_SSE_CLIENTS];
+static int _sse_count = 0;
+
+static void sse_broadcast(csos_organism_t *org, const char *event, const char *data) {
+    char msg[8192];
+    int len = snprintf(msg, sizeof(msg), "event: %s\ndata: %s\n\n", event, data);
+    for (int i = _sse_count - 1; i >= 0; i--) {
+        if (write(_sse_fds[i], msg, len) <= 0) {
+            close(_sse_fds[i]);
+            _sse_fds[i] = _sse_fds[--_sse_count];
+        }
+    }
+}
+
+static void http_send(int fd, int status, const char *ctype, const char *body, size_t blen) {
+    char hdr[512];
+    int hlen = snprintf(hdr, sizeof(hdr),
+        "HTTP/1.1 %d OK\r\nContent-Type: %s\r\nContent-Length: %zu\r\n"
+        "Access-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+        status, ctype, blen);
+    write(fd, hdr, hlen);
+    write(fd, body, blen);
+}
+
+static void http_send_file(int fd, const char *path, const char *ctype) {
+    FILE *f = fopen(path, "r");
+    if (!f) { http_send(fd, 404, "text/plain", "not found", 9); return; }
+    fseek(f, 0, SEEK_END); long sz = ftell(f); fseek(f, 0, SEEK_SET);
+    char *buf = (char *)malloc(sz + 1);
+    fread(buf, 1, sz, f); buf[sz] = 0; fclose(f);
+    http_send(fd, 200, ctype, buf, sz);
+    free(buf);
+}
+
+/* Build full state JSON from organism */
+static int build_state_json(csos_organism_t *org, char *out, size_t sz) {
+    int pos = 0;
+    pos += snprintf(out + pos, sz - pos, "{\"rings\":{");
+    for (int i = 0; i < org->count && pos < (int)sz - 512; i++) {
+        csos_membrane_t *m = org->membranes[i];
+        if (i > 0) pos += snprintf(out + pos, sz - pos, ",");
+        pos += snprintf(out + pos, sz - pos,
+            "\"%s\":{\"gradient\":%.0f,\"speed\":%.4f,\"F\":%.4f,\"rw\":%.3f,"
+            "\"cycles\":%u,\"atoms\":%d,\"decision\":\"%s\"}",
+            m->name, m->gradient, m->speed, m->F, m->rw, m->cycles, m->atom_count,
+            m->speed > m->rw ? "EXECUTE" : "EXPLORE");
+    }
+    pos += snprintf(out + pos, sz - pos, "},\"clients\":%d,\"native\":true}", _sse_count);
+    return pos;
+}
+
+/* Build template catalog JSON */
+static int build_templates_json(char *out, size_t sz) {
+    return snprintf(out, sz,
+        "{\"templates\":["
+        "{\"id\":\"data_pipeline\",\"name\":\"Data Pipeline\",\"description\":\"Ingest → process → decide → deliver\",\"category\":\"ingestion\"},"
+        "{\"id\":\"database_etl\",\"name\":\"Database ETL\",\"description\":\"Query → transform → load → validate\",\"category\":\"etl\"},"
+        "{\"id\":\"model_inference\",\"name\":\"Model Inference\",\"description\":\"Prepare → infer → parse → evaluate\",\"category\":\"ai\"},"
+        "{\"id\":\"file_processing\",\"name\":\"File Processing\",\"description\":\"Read → parse → analyze → output\",\"category\":\"files\"},"
+        "{\"id\":\"rdma_hpc\",\"name\":\"RDMA HPC Pipeline\",\"description\":\"Register → compute → RDMA transfer → verify\",\"category\":\"hpc\"},"
+        "{\"id\":\"multi_source\",\"name\":\"Multi-Source Aggregation\",\"description\":\"Gather multiple → merge → analyze → deliver\",\"category\":\"aggregation\"}"
+        "]}");
+}
+
+int csos_http_loop(csos_organism_t *org, uint16_t port) {
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) return -1;
+    int opt = 1;
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    struct sockaddr_in addr = {0};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) { close(fd); return -1; }
+    listen(fd, 32);
+    fprintf(stderr, "CSOS native daemon on http://localhost:%d\n", port);
+    fprintf(stderr, "  Canvas: http://localhost:%d\n", port);
+    fprintf(stderr, "  SSE:    http://localhost:%d/events\n", port);
+    fprintf(stderr, "  API:    http://localhost:%d/api/command (POST)\n", port);
+
+    char req[65536], resp[65536];
+    while (1) {
+        struct pollfd pfds[MAX_SSE_CLIENTS + 1];
+        pfds[0].fd = fd; pfds[0].events = POLLIN;
+        /* Also poll SSE clients for disconnect detection */
+        for (int i = 0; i < _sse_count; i++) {
+            pfds[i + 1].fd = _sse_fds[i]; pfds[i + 1].events = POLLIN;
+        }
+        int nfds = poll(pfds, 1 + _sse_count, 5000);
+        if (nfds <= 0) {
+            /* Keepalive for SSE clients */
+            for (int i = _sse_count - 1; i >= 0; i--) {
+                if (write(_sse_fds[i], ": keepalive\n\n", 14) <= 0) {
+                    close(_sse_fds[i]);
+                    _sse_fds[i] = _sse_fds[--_sse_count];
+                }
+            }
+            continue;
+        }
+        /* Check for SSE client disconnects */
+        for (int i = _sse_count - 1; i >= 0; i--) {
+            if (pfds[i + 1].revents & (POLLIN | POLLHUP | POLLERR)) {
+                char tmp[16];
+                if (read(_sse_fds[i], tmp, sizeof(tmp)) <= 0) {
+                    close(_sse_fds[i]);
+                    _sse_fds[i] = _sse_fds[--_sse_count];
+                }
+            }
+        }
+        if (!(pfds[0].revents & POLLIN)) continue;
+
+        int cl = accept(fd, NULL, NULL);
+        if (cl < 0) continue;
+        ssize_t n = read(cl, req, sizeof(req) - 1);
+        if (n <= 0) { close(cl); continue; }
+        req[n] = 0;
+
+        /* Parse HTTP method and path */
+        char method[8] = {0}, path[256] = {0};
+        sscanf(req, "%7s %255s", method, path);
+
+        /* ── OPTIONS: CORS preflight ── */
+        if (strcmp(method, "OPTIONS") == 0) {
+            const char *cors = "HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\n"
+                "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+                "Access-Control-Allow-Headers: Content-Type\r\nContent-Length: 0\r\n"
+                "Connection: close\r\n\r\n";
+            write(cl, cors, strlen(cors));
+            close(cl); continue;
+        }
+
+        /* ── GET routes ── */
+        if (strcmp(method, "GET") == 0) {
+            if (strcmp(path, "/") == 0 || strcmp(path, "/index.html") == 0) {
+                http_send_file(cl, ".canvas-tui/index.html", "text/html; charset=utf-8");
+            }
+            else if (strcmp(path, "/api/state") == 0) {
+                build_state_json(org, resp, sizeof(resp));
+                http_send(cl, 200, "application/json", resp, strlen(resp));
+            }
+            else if (strcmp(path, "/api/templates") == 0) {
+                build_templates_json(resp, sizeof(resp));
+                http_send(cl, 200, "application/json", resp, strlen(resp));
+            }
+            else if (strcmp(path, "/events") == 0) {
+                /* SSE: keep connection open, add to client list */
+                const char *sse_hdr =
+                    "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
+                    "Cache-Control: no-cache\r\nAccess-Control-Allow-Origin: *\r\n"
+                    "Connection: keep-alive\r\n\r\n";
+                write(cl, sse_hdr, strlen(sse_hdr));
+                /* Send initial state */
+                build_state_json(org, resp, sizeof(resp));
+                char init[65536];
+                int ilen = snprintf(init, sizeof(init), "event: state\ndata: %s\n\n", resp);
+                write(cl, init, ilen);
+                /* Add to SSE list (don't close) */
+                if (_sse_count < MAX_SSE_CLIENTS) {
+                    _sse_fds[_sse_count++] = cl;
+                } else {
+                    close(cl);
+                }
+                continue; /* Don't close — SSE connection stays open */
+            }
+            else {
+                http_send(cl, 404, "text/plain", "not found", 9);
+            }
+            close(cl); continue;
+        }
+
+        /* ── POST routes ── */
+        if (strcmp(method, "POST") == 0) {
+            char *body = strstr(req, "\r\n\r\n");
+            if (body) body += 4; else body = "{}";
+            if (strcmp(path, "/api/command") == 0) {
+                csos_handle(org, body, resp, sizeof(resp));
+                http_send(cl, 200, "application/json", resp, strlen(resp));
+                /* Broadcast to SSE clients */
+                sse_broadcast(org, "response", resp);
+            }
+            else {
+                http_send(cl, 404, "application/json", "{\"error\":\"not found\"}", 21);
+            }
+            close(cl); continue;
+        }
+
+        close(cl);
+    }
+    close(fd);
+    return 0;
+}

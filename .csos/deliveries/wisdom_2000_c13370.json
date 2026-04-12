@@ -1,0 +1,18 @@
+{
+  "substrate": "",
+  "decision": "EXECUTE",
+  "insight": "## Stress Test Results: Request-Response Capabilitynn### Test 1: Health Checkn- **Status**: ✅ Healthyn- **Architecture**: unified_membranen- **Rings Active**: 3 (eco_domain, eco_cockpit, eco_organis",
+  "evidence": {
+    "gradient": 0,
+    "speed": 0.000,
+    "rw": 0.000,
+    "motor_strength": 0.464,
+    "delta": 7
+  },
+  "rings": {
+    "domain": { "grad": 0, "speed": 0.000, "F": 0.0000 },
+    "cockpit": { "grad": 0, "speed": 0.000 },
+    "organism": { "grad": 0, "speed": 0.000 }
+  },
+  "cycle": 13370
+}

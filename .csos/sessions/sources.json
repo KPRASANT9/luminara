@@ -1,0 +1,6 @@
+{
+  "github_api": {"level": 1, "type": "api_key"},
+  "postgres_prod": {"level": 2, "type": "token"},
+  "kl": {"level": 0, "type": "none"},
+  "pg_analytics": {"level": 2, "type": "token"},
+  "s3_warehouse": {"level": 3, "type": "oauth"}}
