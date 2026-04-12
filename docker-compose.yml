@@ -1,0 +1,47 @@
+services:
+  csos:
+    build: .
+    container_name: csos
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./csos-data:/app/.csos
+    restart: unless-stopped
+    networks:
+      - csos-net
+
+  opencode:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: csos-opencode:dev
+    env_file: .env
+    environment:
+      CSOS_URL: http://csos:4200
+      TERM: xterm-256color
+    volumes:
+      - .:/app
+      - opencode-config:/root/.local/share/opencode
+      - opencode-cache:/root/.cache
+      - uv-cache:/root/.cache/uv
+    working_dir: /app
+    stdin_open: true
+    tty: true
+    depends_on:
+      csos:
+        condition: service_healthy
+    networks:
+      - csos-net
+    # Not started by `docker compose up`; launch with:
+    #   docker compose run --rm opencode
+    profiles:
+      - dev
+
+networks:
+  csos-net:
+    driver: bridge
+
+volumes:
+  opencode-config:
+  opencode-cache:
+  uv-cache:

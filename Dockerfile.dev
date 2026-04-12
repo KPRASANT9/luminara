@@ -1,0 +1,35 @@
+# CSOS dev environment — opencode + MCP tooling
+# Companion to Dockerfile (production csos daemon).
+#
+# Usage:
+#   docker compose --profile dev run --rm opencode
+#
+# Layers uv (for uvx alpaca-mcp-server) and the opencode CLI on ubuntu:24.04.
+# Pre-caches alpaca-mcp-server so the first `opencode` run is instant.
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PATH="/root/.local/bin:/root/.opencode/bin:${PATH}" \
+    UV_CACHE_DIR="/root/.cache/uv" \
+    UV_TOOL_DIR="/root/.local/share/uv/tools"
+
+# Minimal runtime deps. No build-essential — uv ships prebuilt wheels.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        curl ca-certificates unzip python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# uv — provides `uvx` used to spawn the Alpaca MCP server
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# opencode CLI
+RUN curl -fsSL https://opencode.ai/install | bash
+
+# Pre-install alpaca-mcp-server into a persistent tool dir so the first
+# `uvx alpaca-mcp-server` call doesn't have to resolve + download.
+RUN uv tool install alpaca-mcp-server \
+    && uvx alpaca-mcp-server --version
+
+WORKDIR /app
+
+CMD ["opencode"]

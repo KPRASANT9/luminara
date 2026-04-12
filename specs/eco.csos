@@ -1,0 +1,327 @@
+// CSOS F->0 Specification
+// F = COMPLEXITY - ACCURACY. dF/dt <= 0 at all times.
+// Every line serves this guarantee. Nothing else exists.
+
+// ═══ EQUATIONS (5 atoms, immutable DNA) ═══
+
+atom gouterman {
+    formula:   dE = h * c / lambda;
+    compute:   h * c / l;
+    source:    "Gouterman 1961";
+    params:    { dE: 1.0, h: 1.0, c: 1.0, l: 1.0 };
+    limits:    [ "l -> inf -> 0" ];
+    spectral:  [500, 10000];
+    broadband: false;
+    role:      "Does this signal match what we know? (resonance matching)";
+}
+
+atom forster {
+    formula:   k_ET = (1/t) * (R0/r)^6;
+    compute:   (1 / t) * (R0 / r) ** min(R0 / r, 6);
+    source:    "Forster 1948";
+    params:    { k: 1.0, t: 1.0, R0: 1.0, r: 1.0 };
+    limits:    [ "r = R0 -> 1/t" ];
+    spectral:  [0.001, 10];
+    broadband: false;
+    role:      "Can knowledge from one context help another? (substrate coupling)";
+}
+
+atom marcus {
+    formula:   k = exp(-(dG + l)^2 / (4 * l * kT));
+    compute:   exp(-(dG + l) ** 2 / (4 * l * V)) * input;
+    source:    "Nobel 1992";
+    params:    { k: 1.0, V: 1.0, l: 1.0, dG: 1.0 };
+    limits:    [ "dG = -l -> max" ];
+    spectral:  [10, 500];
+    broadband: false;
+    role:      "How far off is reality from prediction? (error correction)";
+}
+
+atom mitchell {
+    formula:   dG = -n * F * dy + 2.3 * R * T * dpH;
+    compute:   n * F * abs(dy) + signal * abs(dy) / (1 + n);
+    source:    "Nobel 1978";
+    params:    { dG: 1.0, n: 1.0, F: 1.0, dy: 1.0 };
+    limits:    [ "eq" ];
+    spectral:  [0, 10000];
+    broadband: true;
+    role:      "How much evidence do we have? (information capacity)";
+}
+
+atom boyer {
+    formula:   ATP = flux * n / 3;
+    compute:   flux * n / 3;
+    source:    "Nobel 1997";
+    params:    { rate: 1.0, flux: 1.0, n: 1.0 };
+    limits:    [ "flux = 0 -> 0" ];
+    spectral:  [0.001, 100];
+    broadband: false;
+    role:      "Is evidence sufficient for a decision? (speed vs resonance_width)";
+}
+
+// ═══ THREE-LAYER ARCHITECTURE ═══
+//
+// EXTERNAL (Causal Layer):
+//   CausalAtom DAG with macro causes. Lag prediction.
+//   Counterfactual: bad model vs bad luck vs regime change.
+//   When cause detected -> predict effects -> inject into membrane.
+//
+// INTERNAL (Hierarchical Membrane):
+//   L0: Raw atoms (33:1)       L1: Pattern atoms (10:1)
+//   L2: Regime atoms (50:1)    L3: Causal atoms (500:1)
+//   L4: Rhythm atoms (52:1)    Total: 5000:1 compression
+//   Pruning: 20% quarterly (L1 regularization)
+//
+// BRIDGE (Active Inference):
+//   Boyer allocates to highest F gap.
+//   Probes carry 2-5x more info. Regime detect < 100 cycles.
+
+// ═══ RINGS (3 ecosystem compartments) ═══
+
+ring eco_domain {
+    atoms: [gouterman, forster, marcus, mitchell, boyer];
+    purpose: "All substrate signals. Calvin atoms grow per substrate.";
+    mitchell_n: 1;
+}
+
+ring eco_cockpit {
+    atoms: [gouterman, forster, marcus, mitchell, boyer];
+    purpose: "Agent performance. Wisdom signals, not telemetry.";
+    metrics: [specificity_delta, action_ratio, calvin_rate, boundary_crossings];
+    mitchell_n: 2;
+}
+
+ring eco_organism {
+    atoms: [gouterman, forster, marcus, mitchell, boyer];
+    purpose: "Integration layer. speed > rw triggers Boyer EXECUTE.";
+    mitchell_n: 3;
+}
+
+// ═══ SUBSTRATES ═══
+
+// Substrates declare spectral range only. All other properties are equation-derived:
+//   rw:           Gouterman dof/(dof+1) from atom complexity
+//   calvin_freq:  2 + (atom_count-2) × (1 - CO₂_pressure)
+//   info_half_life: spectral_midpoint / 10
+//   spectral_weight: 1/√(bandwidth/1000)
+//   agent_type:   quantiles of motor interval distribution
+
+substrate mmlu        { spectral: [100, 2000]; }
+substrate hellaswag   { spectral: [50, 1000]; }
+substrate gsm8k       { spectral: [10, 500]; }
+substrate humaneval   { spectral: [200, 5000]; }
+substrate truthfulqa  { spectral: [20, 800]; }
+substrate mt_bench    { spectral: [100, 3000]; }
+substrate ifeval      { spectral: [50, 1500]; }
+substrate gpqa        { spectral: [500, 8000]; }
+
+// ═══ ECONOPHYSICS SUBSTRATES (7 gaps encoded as signal types) ═══
+// These flow through the SAME membrane as everything else.
+// No parallel path. No separate engine. Physics drives everything.
+
+substrate equity_tick    { spectral: [1, 100]; }       // Ultra-HF — violet
+substrate order_flow     { spectral: [10, 500]; }      // HF — blue
+substrate volatility     { spectral: [50, 1000]; }     // MF — green
+substrate macro_pulse    { spectral: [200, 5000]; }    // LF — orange
+substrate microstructure { spectral: [0.1, 50]; }      // Ultra-HF — deep violet
+
+// ═══ DUAL-REACTOR COUPLING (V14 — Thylakoid Architecture) ═══
+//
+// Photosynthesis splits into two physically separated reactors
+// coupled by ATP and NADPH shuttles. The light reactor reduces
+// complexity. The dark reactor maximizes accuracy. Neither can
+// outrun the other.
+//
+// F = COMPLEXITY(light) - ACCURACY(dark)
+// dF/dt <= 0 when coupling is balanced.
+
+coupling thylakoid {
+    light: [gouterman, forster, marcus];
+    dark: [mitchell, boyer];
+
+    // ATP shuttle: energy currency
+    atp_production: "1 per Gouterman resonation";
+    atp_consumption: "1 per hierarchy assign, 2 per rhythm test, 3 per atom create, 5 per causal link";
+    atp_overflow: "MAX_ATOMS * mitchell_n";
+    atp_underflow: "dark reactor pauses";
+
+    // NADPH shuttle: confidence currency
+    nadph_production: "1 per Marcus gate pass (error < lambda)";
+    nadph_consumption: "1 per counterfactual score, 2 per regime HMM update";
+
+    // Photoprotection: non-photochemical quenching
+    npq_trigger: "atp_pool > atp_overflow";
+    npq_action: "prune L0 atoms with lowest net_value";
+
+    // Reactor balance: health metric
+    balance: "atp_produced / (atp_consumed + epsilon)";
+    ideal: 1.0;
+}
+
+// ═══ CAUSAL SEEDS (topology only — lag and strength discovered) ═══
+//
+// Seeds declare which substrates MAY cause which — the directed graph edges.
+// They do NOT declare lag or strength. Those are observable:
+//
+//   lag:       Discovered from motor interval differences between cause and
+//              effect substrates. freeenergy_discover_causal() measures the
+//              actual time gap between cause resonation and effect resonation.
+//              lag = motor[effect].last_seen - motor[cause].last_seen
+//
+//   strength:  Discovered from Förster coupling × Marcus accuracy.
+//              strength = motor[cause].strength × motor[effect].strength
+//              Counterfactual scoring (direction accuracy > 1-1/√checks)
+//              validates or degrades the link over time.
+//
+//   direction: Observed from sign correlation between cause and effect deltas.
+//              Positive correlation → direction = +1 (same direction).
+//              Negative correlation → direction = -1 (inverse).
+//
+// Hardcoding lag=50 or strength=0.85 would violate OP-3 (Observable Derivation).
+// The membrane discovers these values. Seeds only declare the topology.
+
+causal_seed { cause: "macro_pulse", effect: "volatility", direction: "discover" }
+causal_seed { cause: "order_flow", effect: "equity_tick", direction: "discover" }
+causal_seed { cause: "volatility", effect: "order_flow", direction: "discover" }
+
+// ═══ AGENTS ═══
+
+agent plan {
+    mode: read_only;
+    loop {
+        observe(choose_source());
+        let result = absorb(observation);
+        if (result.decision == EXECUTE || result.speed > result.rw) {
+            deliver(compose_answer());
+            break;
+        }
+        if (result.action_ratio < 0.3 && result.delta == 0) {
+            ask_human(missing_signal());
+        }
+    }
+}
+
+agent build {
+    mode: read_write;
+    loop {
+        observe(choose_source());
+        let result = absorb(observation);
+        if (result.decision == EXECUTE) {
+            write_deliverable(compose_output());
+            let post = absorb(deliverable_meta);
+            if (post.delta <= 0) { flag_for_review(); }
+            break;
+        }
+    }
+}
+
+agent living {
+    mode: full;
+    let current_mode = plan;
+    loop {
+        step(current_mode);
+        let state = see(eco_organism, cockpit);
+        if (current_mode == plan && state.decision == EXECUTE) {
+            current_mode = build;
+        }
+        if (autonomous && stuck()) {
+            store_pending_question();
+            switch_substrate();
+        }
+    }
+}
+
+// ═══ GREENHOUSE ═══
+
+greenhouse {
+    max_sessions: 32;
+    max_seeds: 64;
+    convergence_threshold: "boyer_derived";   // 1/(mitchell_n * 3) — same as decision gate
+    merge_interval: "co2_pressure_derived";   // adapts with Calvin frequency
+    auto_harvest: true;
+    auto_plant: true;
+}
+
+// ═══ VITALITY (equation-derived, no fixed thresholds) ═══
+
+vitality {
+    formula: geometric_mean(gouterman, forster, marcus, mitchell, boyer);
+    smoothing: "1/sqrt(alive_cycles)";    // adaptive — fast at start, stabilizes
+    threshold: "boyer_derived";            // 1/(mitchell_n * 3), not fixed 0.3
+    // Boyer vitality contribution: flux/(flux+1) where flux = speed * mitchell_n
+    // Continuous sigmoid replaces bucketed EXPLORE_HIGH/LOW/STUCK
+}
+
+// ═══ F->0 GUARANTEE (equation-derived, V13) ═══
+//
+// Five conditions for dF/dt <= 0:
+//   1. absorb_rate > tick_rate (measured via `csos perf`, not assumed)
+//   2. Causal graph covers ~20 macro causes (seeds via LLM, refined by Calvin)
+//   3. Compression outpaces accumulation (32-atom cap + pruning + hierarchy)
+//   4. Active inference targets high-F (Boyer + motor + F-gap)
+//   5. Regime transitions detected in 2+log2(atom_count) cycles (equation-derived)
+//
+// F_min = 1/PHOTON_RING = 1/8192 ≈ 1.2 basis points (observation buffer resolution)
+//
+// ALL runtime thresholds derived from 5 equations + membrane observables:
+//   Boyer threshold:   1/(mitchell_n * 3)      — from ATP = flux*n/3
+//   RW bounds:         median/max(atom.rw)     — from Gouterman DOF
+//   Motor coupling:    1/(1+(r/R0)^6)          — from Forster transfer
+//   Error guard:       stddev(atom errors)     — from Marcus λ
+//   Regime detection:  mean ± σ of F history   — from running distribution
+//   Info half-life:    spectral_midpoint / 10  — from spectral range
+//   Vitality EMA:      1/√(alive_cycles)       — adaptive smoothing
+
+// ═══ LAWS ═══
+
+law no_hardcoded_logic {
+    enforcement: "All decisions AND thresholds flow from 5 equations + membrane observables. No fixed constants in physics paths. See csos_derive_*() in membrane.c.";
+}
+
+law all_state_from_csos {
+    enforcement: "Single .csos/ directory. No distributed config.";
+}
+
+law zero_code_for_substrates {
+    enforcement: "New substrate = new spec entry. Zero code changes.";
+}
+
+// ═══ PHYSICAL LIMITS (the only hardcoded values) ═══
+//
+// 4 physical laws set ALL structural limits:
+//
+//   Nyquist:    PHOTON_RING = 2^13 = 8192
+//               ATOM_PHOTON_RING = PHOTON_RING / MAX_ATOMS × 2 = 512
+//               FHIST_LEN = 10 × 100 → 1024
+//
+//   Kolmogorov: MAX_ATOMS = FOUNDATION(5) + ceil(PHOTON_RING^(1/3)) = 32
+//               MAX_SEEDS = MAX_ATOMS × 2 = 64
+//               CALVIN_SAMPLE = 50 (95% CI on variance)
+//               CALVIN_MATCH = 10 (P(miss) < 0.001)
+//
+//   Gödel:      MAX_PARAMS = ceil(-log₂(1 - 0.94)) × 4 = 16
+//
+//   Mitchell:   MAX_RINGS = 3 + max_domain_pairs = 16
+//               MAX_MOTOR = MAX_ATOMS × MAX_RINGS / 2 = 256
+//               CO2_POOL = MAX_MOTOR = 256
+//
+// Everything else: derived from equations at runtime.
+
+// ═══ OPERATING PRINCIPLES ═══
+//
+// OP-1: PHYSICAL TRACEABILITY
+//   Every #define must name its physical law. No law → csos_derive_*().
+//
+// OP-2: EQUATION SOVEREIGNTY
+//   All decisions from 5 equations. No if/else on domain names.
+//
+// OP-3: OBSERVABLE DERIVATION
+//   Thresholds are functions of (gradient, speed, F, rw, motor.strength,
+//   photon_count, spectral range). Membrane computes → agents read.
+//
+// OP-4: CONVERGENCE GUARANTEE
+//   Structural limits preserve dF/dt ≤ 0.
+//   PHOTON_RING ≥ 2 × max_period. MAX_ATOMS ≥ 5 + PHOTON_RING^(1/3).
+//
+// OP-5: DIMENSIONAL CONSISTENCY
+//   Limits scale together. Change one → recheck dependents.

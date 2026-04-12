@@ -1,0 +1,18 @@
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+csos
+csos-native
+csos-debug
+*.o
+*.a
+
+# Runtime state
+csos-data/
+.csos/
+
+# OS
+.DS_Store

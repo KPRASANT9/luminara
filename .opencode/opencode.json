@@ -1,0 +1,60 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "Three verbs: FEED (signal in), CHECK (read physics), ACT (execute decision).",
+    "ALL physics through csos tool. MCP for external data. Boyer decides.",
+    "Read decision + gradient + speed + F from EVERY cockpit check.",
+    "EXECUTE = act. EXPLORE = feed more. Never override Boyer."
+  ],
+  "mcp": {
+    "alphavantage": {
+      "type": "local",
+      "command": ["sh", "-c", "set -a && . .env && export ALPHAVANTAGE_API_KEY=\"$ALPHA_VANTAGE_API_KEY\" && exec uvx --from alphavantage-mcp-server alphavantage-mcp-server"],
+      "environment": {}
+    },
+    "financialdatasets": {
+      "type": "remote",
+      "url": "https://mcp.financialdatasets.ai/mcp",
+      "enabled": true
+    },
+    "eodhd": {
+      "type": "local",
+      "command": ["sh", "-c", "set -a && . .env && exec npx -y mcp-remote \"https://mcpv2.eodhd.dev/v1/mcp?api_token=$EODHD_API_KEY\""],
+      "environment": {}
+    },
+    "alpaca": {
+      "type": "local",
+      "command": ["uvx", "alpaca-mcp-server", "--env-file", ".env"],
+      "environment": {
+        "PAPER": "true",
+        "ALPACA_TOOLSETS": "trading,market_data,account"
+      }
+    }
+  },
+  "skills": {
+    "econophysics": { "path": ".opencode/skills/econophysics" },
+    "csos-core": { "path": ".opencode/skills/csos-core" },
+    "bridge": { "path": ".opencode/skills/bridge" },
+    "workflow": { "path": ".opencode/skills/workflow" },
+    "playbook": { "path": ".opencode/skills/playbook" }
+  },
+  "agent": {
+    "csos-living": {
+      "description": "Feed → Check → Act. Dual reactor. Boyer gates. MCP feeds.",
+      "mode": "primary",
+      "prompt": "{file:agents/csos-living.md}"
+    }
+  },
+  "permission": {
+    "bash": { "csos-exec": "allow", "*": "deny" },
+    "csos": "allow",
+    "mcp": "allow",
+    "skill": "allow",
+    "glob": "allow",
+    "grep": "allow",
+    "read": "allow",
+    "write": "deny",
+    "edit": "deny"
+  }
+}

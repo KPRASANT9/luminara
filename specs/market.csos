@@ -1,0 +1,153 @@
+// Market Substrate Specification — Planetary Membrane
+// 31 substrates × 4 rings × 7 atoms × 33 causal seeds
+// Zero code changes. Physics drives everything.
+
+// ═══ 7 EXTENDED ATOMS ═══
+
+atom self_impact {
+    formula:   impact = sqrt(V / ADV) * sigma;
+    params:    { V: 0.0, ADV: 1.0, sigma: 0.01 };
+    role:      "Reflexivity: order moves market";
+}
+
+atom info_decay {
+    formula:   value = init * exp(-t / half_life);
+    params:    { init: 1.0, t: 0.0, half_life: 3600.0 };
+    role:      "Signal staleness: tick=1s, daily=1hr, macro=3mo";
+}
+
+atom spectral_weight {
+    formula:   weight = 1 / (1 + freq / cutoff);
+    params:    { freq: 1.0, cutoff: 0.05 };
+    role:      "Low-frequency = more info per bit";
+}
+
+atom adversarial {
+    formula:   decay = base * (1 + crowding * edge);
+    params:    { base: 0.01, crowding: 0.0, edge: 0.0 };
+    role:      "Profitable patterns die ∝ crowding";
+}
+
+atom agent_type {
+    formula:   regime = max(institutional, hft, retail);
+    params:    { institutional: 0.33, hft: 0.33, retail: 0.33 };
+    role:      "Who trades determines regime";
+}
+
+atom directed_coupling {
+    formula:   k = correlation * sign(lag) / abs(lag);
+    params:    { correlation: 0.0, lag: 1.0 };
+    role:      "Information flows directionally with lag";
+}
+
+atom order_book {
+    formula:   gradient = (bid_vol - ask_vol) / (bid_vol + ask_vol);
+    params:    { bid_vol: 1.0, ask_vol: 1.0 };
+    role:      "Book imbalance IS Mitchell gradient";
+}
+
+// ═══ 4 TIMEZONE RINGS ═══
+// Independent processing. Overlaps = Förster coupling. Gaps = free energy.
+
+ring tz_asia   { capacity: 4096; schedule: "05:30-13:30 IST"; }
+ring tz_india  { capacity: 4096; schedule: "09:15-15:30 IST"; edge: "Partial decoupling. Domestic consumption. Different cycle."; }
+ring tz_europe { capacity: 4096; schedule: "12:30-20:30 IST"; }
+ring tz_us     { capacity: 4096; schedule: "19:00-01:30 IST"; max_coupling: "London-NYSE overlap = 1.0"; }
+
+// ═══ 31 PLANETARY SUBSTRATES ═══
+// spectral range → info_half_life, spectral_weight, agent_type (all equation-derived)
+
+// 15 Indexes [50, 1000] — MF band, daily decay
+substrate nikkei       { spectral: [50, 1000]; ring: tz_asia; }
+substrate kospi        { spectral: [50, 1000]; ring: tz_asia; }
+substrate hangseng     { spectral: [50, 1000]; ring: tz_asia; }
+substrate shanghai     { spectral: [100, 2000]; ring: tz_asia; }
+substrate asx200       { spectral: [50, 1000]; ring: tz_asia; }
+substrate taiwan       { spectral: [50, 1000]; ring: tz_asia; }
+substrate nifty50      { spectral: [50, 1000]; ring: tz_india; }
+substrate ftse         { spectral: [50, 1000]; ring: tz_europe; }
+substrate dax          { spectral: [50, 1000]; ring: tz_europe; }
+substrate cac40        { spectral: [50, 1000]; ring: tz_europe; }
+substrate eurostoxx    { spectral: [50, 1000]; ring: tz_europe; }
+substrate sp500        { spectral: [50, 1000]; ring: tz_us; }
+substrate nasdaq100    { spectral: [50, 1000]; ring: tz_us; }
+substrate russell2000  { spectral: [50, 1000]; ring: tz_us; }
+substrate dowjones     { spectral: [50, 1000]; ring: tz_us; }
+substrate bovespa      { spectral: [50, 1000]; ring: tz_us; }
+
+// 6 Currencies [10, 500] — faster than stocks, HF/MF band
+substrate usdjpy       { spectral: [10, 500]; ring: tz_asia; }
+substrate eurusd       { spectral: [10, 500]; ring: tz_europe; }
+substrate gbpusd       { spectral: [10, 500]; ring: tz_europe; }
+substrate usdcny       { spectral: [10, 500]; ring: tz_asia; }
+substrate usdinr       { spectral: [10, 500]; ring: tz_india; }
+substrate audusd       { spectral: [10, 500]; ring: tz_asia; }
+
+// 5 Bridges [20, 800] — 24/7, bridge the dark window
+substrate es_futures   { spectral: [20, 800]; ring: tz_us; }
+substrate nq_futures   { spectral: [20, 800]; ring: tz_us; }
+substrate gold         { spectral: [100, 2000]; ring: tz_us; }
+substrate oil_wti      { spectral: [50, 1000]; ring: tz_us; }
+substrate bitcoin      { spectral: [10, 500]; ring: tz_us; }
+
+// 5 Fundamentals [500, 8000] — LF, quarterly decay
+substrate worth        { spectral: [500, 8000]; }
+substrate health       { spectral: [500, 8000]; }
+substrate traffic      { spectral: [50, 1000]; }
+substrate potential    { spectral: [1000, 10000]; }
+substrate catalyst     { spectral: [200, 5000]; }
+
+// ═══ 33 CAUSAL SEEDS (topology — lag/strength DISCOVERED) ═══
+
+// Timezone cascade (the planetary ring)
+causal_seed { cause: "nikkei",    effect: "nifty50",   direction: "discover" }
+causal_seed { cause: "kospi",     effect: "nifty50",   direction: "discover" }
+causal_seed { cause: "hangseng",  effect: "nifty50",   direction: "discover" }
+causal_seed { cause: "shanghai",  effect: "nifty50",   direction: "discover" }
+causal_seed { cause: "nifty50",   effect: "dax",       direction: "discover" }
+causal_seed { cause: "nifty50",   effect: "eurostoxx", direction: "discover" }
+causal_seed { cause: "dax",       effect: "sp500",     direction: "discover" }
+causal_seed { cause: "eurostoxx", effect: "sp500",     direction: "discover" }
+causal_seed { cause: "sp500",     effect: "nikkei",    direction: "discover" }
+causal_seed { cause: "sp500",     effect: "kospi",     direction: "discover" }
+causal_seed { cause: "nasdaq100", effect: "kospi",     direction: "discover" }
+causal_seed { cause: "nasdaq100", effect: "taiwan",    direction: "discover" }
+
+// Currency → Index
+causal_seed { cause: "usdjpy",   effect: "nikkei",    direction: "discover" }
+causal_seed { cause: "eurusd",   effect: "dax",       direction: "discover" }
+causal_seed { cause: "usdcny",   effect: "hangseng",  direction: "discover" }
+causal_seed { cause: "usdinr",   effect: "nifty50",   direction: "discover" }
+causal_seed { cause: "gbpusd",   effect: "ftse",      direction: "discover" }
+causal_seed { cause: "audusd",   effect: "asx200",    direction: "discover" }
+
+// Macro → Markets
+causal_seed { cause: "oil_wti",     effect: "nifty50",     direction: "discover" }
+causal_seed { cause: "oil_wti",     effect: "ftse",        direction: "discover" }
+causal_seed { cause: "gold",        effect: "sp500",       direction: "discover" }
+causal_seed { cause: "bitcoin",     effect: "nasdaq100",   direction: "discover" }
+
+// Bridges → Overnight prediction
+causal_seed { cause: "es_futures", effect: "nikkei",   direction: "discover" }
+causal_seed { cause: "es_futures", effect: "nifty50",  direction: "discover" }
+causal_seed { cause: "es_futures", effect: "dax",      direction: "discover" }
+
+// 5 Forces → Decision chain
+causal_seed { cause: "health",    effect: "worth",       direction: "discover" }
+causal_seed { cause: "worth",     effect: "traffic",     direction: "discover" }
+causal_seed { cause: "catalyst",  effect: "traffic",     direction: "discover" }
+causal_seed { cause: "potential",  effect: "worth",      direction: "discover" }
+causal_seed { cause: "worth",     effect: "catalyst",    direction: "discover" }
+
+// Cross-ring coupling
+causal_seed { cause: "sp500",     effect: "nifty50",   direction: "discover" }
+causal_seed { cause: "dax",       effect: "ftse",      direction: "discover" }
+causal_seed { cause: "nifty50",   effect: "hangseng",  direction: "discover" }
+
+// ═══ LIMITS ═══
+
+limit heisenberg    { value: "1bp"; source: "observation noise floor"; }
+limit kolmogorov    { value: "32 atoms"; source: "model capacity per ring"; }
+limit goedel        { value: "unavoidable"; source: "self-reference"; }
+limit landauer      { value: "1e-15 J/absorb"; source: "computation cost"; }
+limit photosynthesis { value: "95%"; source: "efficiency ceiling"; }

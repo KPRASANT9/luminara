@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>CSOS Living Equation</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#06060c;--bg2:#0c0c16;--bg3:#14142a;--bg4:#1e1e3a;
+  --fg:#e0e0f0;--fg2:#8888aa;--fg3:#555570;
+  --cyan:#00d4ff;--amber:#ffb300;--green:#00e676;--red:#ff5252;
+  --blue:#448aff;--purple:#b388ff;--pink:#ff80ab;
+  --gouterman:#00d4ff;--forster:#b388ff;--marcus:#ffb300;
+  --mitchell:#00e676;--boyer:#ff80ab;--calvin:#76ff03;
+  --radius:8px;--gap:10px;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font:13px/1.5 'SF Mono',Menlo,Consolas,monospace}
+
+/* ═══ LAYOUT: Organism + Panels ═══ */
+#app{display:grid;grid-template-columns:1fr 380px;grid-template-rows:44px 1fr;height:100vh;gap:0}
+#top-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--bg3)}
+#organism-view{position:relative;overflow:hidden;background:var(--bg)}
+#side-panel{display:flex;flex-direction:column;background:var(--bg2);border-left:1px solid var(--bg3);overflow:hidden}
+
+/* ═══ TOP BAR ═══ */
+#top-bar .title{font-weight:700;font-size:15px;letter-spacing:-0.5px;display:flex;align-items:center;gap:10px}
+#top-bar .vitality-badge{padding:3px 14px;border-radius:20px;font-size:13px;font-weight:700;transition:all .5s}
+#top-bar .status{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--fg2)}
+#top-bar .dot{width:8px;height:8px;border-radius:50%;background:var(--fg3);transition:background .3s}
+#top-bar .dot.ok{background:var(--green)}
+#top-bar .dot.err{background:var(--red)}
+.eq-pills{display:flex;gap:4px}
+.eq-pill{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;opacity:.8;transition:all .3s}
+.eq-pill:hover{opacity:1;transform:scale(1.08)}
+
+/* ═══ ORGANISM SVG (the living canvas) ═══ */
+#organism-svg{width:100%;height:100%}
+.ring-circle{fill:none;stroke-width:2;transition:all .5s;cursor:pointer}
+.ring-circle:hover{stroke-width:3;filter:brightness(1.3)}
+.ring-label{font-family:inherit;font-size:12px;fill:var(--fg2);text-anchor:middle;pointer-events:none}
+.ring-metric{font-family:inherit;font-size:11px;fill:var(--fg3);text-anchor:middle;pointer-events:none}
+.ring-vitality{font-family:inherit;font-size:28px;font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.atom-dot{cursor:pointer;transition:all .3s}
+.atom-dot:hover{filter:brightness(1.5)}
+.flow-particle{pointer-events:none}
+.equation-label{font-family:inherit;font-size:10px;fill:var(--fg3);text-anchor:middle;pointer-events:none;opacity:0;transition:opacity .3s}
+.equation-label.show{opacity:1}
+
+/* Central vitality pulse */
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.8;transform:scale(1.05)}}
+.vitality-glow{animation:pulse 2s ease-in-out infinite}
+
+/* Flow particles animation */
+@keyframes flowIn{0%{opacity:0;offset-distance:0%}10%{opacity:1}90%{opacity:1}100%{opacity:0;offset-distance:100%}}
+
+/* ═══ QUICK ACTIONS ═══ */
+.quick-actions{display:flex;gap:6px;padding:8px 14px;border-bottom:2px solid var(--bg4);background:var(--bg2)}
+.quick-btn{flex:1;padding:8px 4px;border:1px solid var(--bg4);border-radius:var(--radius);background:var(--bg3);color:var(--fg);font:12px/1 inherit;font-weight:600;cursor:pointer;transition:all .2s;text-align:center;letter-spacing:0.5px}
+.quick-btn:hover{background:var(--bg4);border-color:var(--fg3)}
+.quick-btn:active{transform:scale(0.96)}
+.quick-btn.scan-btn{border-color:var(--green);color:var(--green)}
+.quick-btn.scan-btn:hover{background:rgba(0,230,118,0.1)}
+.quick-btn.focus-btn{border-color:var(--cyan);color:var(--cyan)}
+.quick-btn.focus-btn:hover{background:rgba(0,212,255,0.1)}
+.quick-btn.auto-btn{border-color:var(--pink);color:var(--pink)}
+.quick-btn.auto-btn:hover{background:rgba(255,128,171,0.1)}
+.quick-btn .btn-sub{display:block;font-size:9px;font-weight:400;color:var(--fg3);margin-top:3px;letter-spacing:0}
+.quick-btn.running{opacity:0.5;pointer-events:none}
+
+/* ═══ SIDE PANEL ═══ */
+.panel-section{padding:10px 14px;border-bottom:1px solid var(--bg3);flex-shrink:0}
+.panel-section h3{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--fg3);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.panel-section h3 .dot-accent{width:6px;height:6px;border-radius:50%;display:inline-block}
+.panel-scroll{flex:1;overflow-y:auto;padding:0}
+
+/* Equation bars */
+.eq-bar{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--bg3);cursor:pointer;transition:background .15s}
+.eq-bar:hover{background:var(--bg3)}
+.eq-bar .name{width:80px;font-weight:600;font-size:12px}
+.eq-bar .bar-wrap{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.eq-bar .bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.eq-bar .val{width:45px;text-align:right;font-size:11px;color:var(--fg2)}
+
+/* Ring detail */
+.ring-detail{padding:8px 14px;font-size:12px;border-bottom:1px solid var(--bg3)}
+.ring-detail .rd-name{font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center}
+.rd-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+.rd-grid .rd-label{color:var(--fg3)}
+.rd-grid .rd-val{text-align:right;font-weight:500}
+
+/* (cmd-bar removed — Canvas is read-only) */
+
+/* Event feed */
+.evt{padding:3px 14px;font-size:10px;border-bottom:1px solid var(--bg3);display:flex;gap:6px;align-items:center}
+.evt .evt-type{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.evt .evt-msg{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--fg2)}
+.evt .evt-sess{color:var(--fg3);font-size:9px}
+.evt-bottleneck .evt-type{background:var(--red)}
+.evt-bottleneck .evt-msg{color:var(--red)}
+.evt-resolution .evt-type{background:var(--green)}
+.evt-milestone .evt-type{background:var(--amber)}
+.evt-scheduler .evt-type{background:var(--fg3)}
+.evt-agent .evt-type{background:var(--cyan)}
+.evt-canvas .evt-type{background:var(--purple)}
+
+/* Session cards */
+.sess-card{padding:8px 14px;border-bottom:1px solid var(--bg3);cursor:pointer;transition:background .15s}
+.sess-card:hover{background:var(--bg3)}
+.sess-card .sc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.sess-card .sc-name{font-weight:600;font-size:12px}
+.sess-card .sc-binding{font-size:10px;color:var(--fg3);margin-top:1px}
+.sess-card .sc-bar{height:4px;background:var(--bg4);border-radius:2px;margin-top:4px}
+.sess-card .sc-fill{height:100%;border-radius:2px;transition:width .5s}
+.sess-card .sc-stats{display:flex;justify-content:space-between;font-size:10px;color:var(--fg3);margin-top:2px}
+.sess-card .sc-io{display:flex;gap:6px;margin-top:3px}
+.sess-card .sc-io span{font-size:9px;padding:1px 5px;border-radius:8px;background:var(--bg4)}
+
+/* Agent log */
+.log-entry{padding:3px 14px;font-size:11px;border-bottom:1px solid var(--bg3);display:flex;gap:8px;align-items:center}
+.log-entry .ts{color:var(--fg3);white-space:nowrap;width:60px}
+.log-entry .dec{font-weight:600;width:60px}
+.log-entry .info{color:var(--fg2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.badge-execute{background:#00e67622;color:var(--green)}
+.badge-explore{background:#448aff22;color:var(--blue)}
+.badge-ask{background:#ffb30022;color:var(--amber)}
+.badge-store{background:#55557022;color:var(--fg3)}
+
+/* Bridge tooltip */
+#bridge-tooltip{position:fixed;background:var(--bg2);border:1px solid var(--bg4);border-radius:var(--radius);padding:12px 16px;max-width:320px;font-size:12px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#bridge-tooltip.show{opacity:1}
+#bridge-tooltip .bt-title{font-weight:700;font-size:13px;margin-bottom:6px}
+#bridge-tooltip .bt-row{display:flex;gap:8px;margin:3px 0}
+#bridge-tooltip .bt-label{color:var(--fg3);width:70px;flex-shrink:0}
+#bridge-tooltip .bt-val{color:var(--fg)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+
+/* ═══ GAP ANALYSIS (read-only observation of system gaps) ═══ */
+.gap-item{padding:6px 14px;border-bottom:1px solid var(--bg3);font-size:11px}
+.gap-item .gap-header{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.gap-item .gap-icon{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.gap-item .gap-title{font-weight:600;font-size:11px}
+.gap-item .gap-detail{color:var(--fg2);font-size:10px;margin-bottom:3px}
+.gap-item .gap-cmd-wrap{display:flex;align-items:center;gap:0;margin-top:3px}
+.gap-item .gap-cmd{background:var(--bg3);border:1px solid var(--bg4);border-radius:4px 0 0 4px;padding:3px 8px;font-size:10px;color:var(--cyan);font-family:inherit;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:all}
+.gap-item .gap-agent{font-size:9px;color:var(--fg3);margin-top:2px}
+.gap-count{font-size:10px;color:var(--fg3);text-transform:none;letter-spacing:0}
+.copy-btn{background:var(--bg4);border:1px solid var(--bg4);border-left:none;border-radius:0 4px 4px 0;color:var(--fg3);font:10px/1 inherit;padding:4px 8px;cursor:pointer;transition:all .15s;white-space:nowrap;flex-shrink:0}
+.copy-btn:hover{background:var(--cyan);color:var(--bg);border-color:var(--cyan)}
+.copy-btn.copied{background:var(--green);color:var(--bg);border-color:var(--green)}
+
+/* ═══ TERMINAL HINTS (read-only agent commands to run) ═══ */
+.term-hint{padding:5px 14px;border-bottom:1px solid var(--bg3);font-size:10px;display:flex;align-items:center;gap:6px}
+.term-hint .th-left{flex:1;min-width:0}
+.term-hint .th-agent{color:var(--cyan);font-weight:600}
+.term-hint .th-cmd{color:var(--fg2);font-family:inherit;user-select:all;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.term-hint .th-why{color:var(--fg3);font-size:9px;margin-top:1px}
+
+/* ═══ AGENT ACTIVITY (read-only observation via SSE) ═══ */
+.agent-activity{padding:8px 14px;font-size:11px;border-bottom:1px solid var(--bg3);display:flex;gap:8px;align-items:flex-start}
+.agent-activity .aa-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:3px}
+.agent-activity .aa-body{flex:1}
+.agent-activity .aa-action{font-weight:600;font-size:10px}
+.agent-activity .aa-result{color:var(--fg2);font-size:10px;margin-top:1px}
+
+/* Responsive: hide side panel on small screens */
+@media(max-width:800px){
+  #app{grid-template-columns:1fr}
+  #side-panel{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <div class="title">
+      <span>CSOS</span>
+      <span id="vitality-badge" class="vitality-badge" style="background:var(--bg3);color:var(--fg3)">--</span>
+      <div class="eq-pills" id="eq-pills"></div>
+    </div>
+    <div class="status">
+      <span id="gap-count-top" style="font-size:11px;color:var(--fg3)" title="System gaps">--</span>
+      <span id="cycle-count">--</span>
+      <span id="decision-badge"></span>
+      <div class="dot" id="sse-dot" title="SSE"></div>
+    </div>
+  </div>
+
+  <!-- ORGANISM VIEW (the living canvas — read-only observation) -->
+  <div id="organism-view">
+    <svg id="organism-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <!-- SIDE PANEL (read-only observation + recommendations) -->
+  <div id="side-panel">
+
+    <!-- QUICK ACTIONS (3 entry points for 90% of use cases) -->
+    <div class="quick-actions">
+      <button class="quick-btn scan-btn" id="btn-scan" onclick="quickAction('scan')">
+        SCAN
+        <span class="btn-sub">regime check</span>
+      </button>
+      <button class="quick-btn focus-btn" id="btn-focus" onclick="quickAction('focus')">
+        FOCUS
+        <span class="btn-sub">deep dive</span>
+      </button>
+      <button class="quick-btn auto-btn" id="btn-auto" onclick="quickAction('auto')">
+        AUTO
+        <span class="btn-sub">full loop</span>
+      </button>
+    </div>
+
+    <!-- GAP ANALYSIS (physics-driven — what the organism needs to grow) -->
+    <div class="panel-section" id="gap-section" style="border-bottom:2px solid var(--green);max-height:280px;overflow-y:auto">
+      <h3><span class="dot-accent" style="background:var(--green)"></span>Gap Analysis <span class="gap-count" id="gap-count"></span></h3>
+      <div id="gap-items"></div>
+    </div>
+
+    <!-- TERMINAL COMMANDS (read-only — copy these to your OpenCode terminal) -->
+    <div class="panel-section" id="terminal-section" style="max-height:140px;overflow-y:auto">
+      <h3><span class="dot-accent" style="background:var(--cyan)"></span>Terminal <span style="font-size:9px;color:var(--fg3);text-transform:none;letter-spacing:0">run in OpenCode</span></h3>
+      <div id="terminal-hints"></div>
+    </div>
+
+    <!-- LIVING EQUATION (5 equation bars) -->
+    <div class="panel-section" id="equation-section">
+      <h3><span class="dot-accent" style="background:var(--green)"></span>Living Equation</h3>
+      <div id="equation-bars"></div>
+    </div>
+
+    <!-- RINGS (eco_domain, eco_cockpit, eco_organism) -->
+    <div class="panel-section" id="rings-section">
+      <h3><span class="dot-accent" style="background:var(--cyan)"></span>Rings</h3>
+      <div id="ring-details"></div>
+    </div>
+
+    <!-- SESSIONS (living equations) -->
+    <div class="panel-section" id="sessions-section" style="max-height:220px;overflow-y:auto">
+      <h3><span class="dot-accent" style="background:var(--purple)"></span>Living Equations <span id="sess-count" style="font-size:10px;color:var(--fg3);text-transform:none;letter-spacing:0"></span></h3>
+      <div id="session-cards"></div>
+    </div>
+
+    <!-- EVENTS & BOTTLENECKS -->
+    <div class="panel-section" id="events-section" style="max-height:120px;overflow-y:auto;flex-shrink:0">
+      <h3><span class="dot-accent" style="background:var(--red)"></span>Events & Bottlenecks</h3>
+      <div id="event-feed"></div>
+    </div>
+
+    <!-- ACTIVITY LOG -->
+    <div class="panel-scroll" id="log-section">
+      <div class="panel-section" style="border-bottom:none">
+        <h3><span class="dot-accent" style="background:var(--amber)"></span>Activity</h3>
+      </div>
+      <div id="agent-log"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Bridge tooltip (shows living + conceptual meaning on hover) -->
+<div id="bridge-tooltip"></div>
+
+<script>
+/* ═══ STATE ═══ */
+const S = {
+  rings: [],
+  sessions: [],
+  convergences: [],  /* Forster coupling between sessions */
+  orgVitality: 0,
+  eventLog: [],
+  sse: null,
+  selectedRing: null,
+};
+
+const API = '/api/command';
+const COLORS = {domain:'#00d4ff',cockpit:'#ffb300',organism:'#00e676'};
+const EQ_COLORS = {gouterman:'#00d4ff',forster:'#b388ff',marcus:'#ffb300',mitchell:'#00e676',boyer:'#ff80ab'};
+const EQ_PHYSICS = {
+  gouterman:{formula:'dE = hc/\u03bb',living:'Am I absorbing the right light?',conceptual:'Do inputs match my knowledge?'},
+  forster:{formula:'k = (1/\u03c4)(R\u2080/r)\u2076',living:'Am I part of a living ecosystem?',conceptual:'Does cross-domain transfer work?'},
+  marcus:{formula:'k = exp(-(\u0394G+\u03bb)\u00b2/4\u03bbkT)',living:'Can I heal from mistakes?',conceptual:'Are predictions converging?'},
+  mitchell:{formula:'\u0394G = -nF\u0394\u03c8',living:'How much life force do I generate?',conceptual:'How fast am I learning?'},
+  boyer:{formula:'ATP = flux\u00b7n/3',living:'Can my motor rotate freely?',conceptual:'Can I decide with confidence?'},
+};
+
+/* ═══ API HELPER ═══ */
+async function cmd(payload) {
+  try {
+    const r = await fetch(API, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    return await r.json();
+  } catch(e) { return {error:e.message}; }
+}
+
+/* ═══ SSE CONNECTION ═══ */
+let _sseRetries = 0;
+function connectSSE() {
+  if (S.sse) try{S.sse.close()}catch(e){}
+  const dot = document.getElementById('sse-dot');
+  try {
+    S.sse = new EventSource('/events');
+    S.sse.onopen = () => {
+      dot.className='dot ok';
+      _sseRetries = 0;
+      /* SSE connected — refresh state immediately */
+      fetchFullState();
+    };
+    S.sse.addEventListener('state', e => {
+      try {
+        const d = JSON.parse(e.data);
+        if (d.rings) updateRings(d.rings);
+        if (d.sessions) updateSessions(d.sessions);
+        if (d.events) renderEvents(d.events);
+        if (d.organism_vitality !== undefined) S.orgVitality = d.organism_vitality;
+      } catch(err){ console.warn('SSE state parse error:', err); }
+    });
+    S.sse.addEventListener('response', e => {
+      try {
+        const d = JSON.parse(e.data);
+        addLog(d);
+        if (d.physics) spawnParticles();
+        /* Scheduler ticks update sessions in real-time */
+        if (d.scheduler_tick) {
+          spawnParticles();
+          if (d.recent_events) renderEvents(d.recent_events);
+          refreshState();
+        }
+        /* Any response = state changed, refresh */
+        fetchFullState();
+      } catch(err){ console.warn('SSE response parse error:', err); }
+    });
+    S.sse.onerror = () => {
+      dot.className='dot err';
+      S.sse.close();
+      _sseRetries++;
+      const delay = Math.min(3000 * _sseRetries, 15000);
+      console.warn(`SSE disconnected, retry #${_sseRetries} in ${delay}ms`);
+      setTimeout(connectSSE, delay);
+    };
+  } catch(e) {
+    dot.className='dot err';
+    _sseRetries++;
+    setTimeout(connectSSE, Math.min(5000 * _sseRetries, 30000));
+  }
+}
+
+/* ═══ STATE MANAGEMENT ═══ */
+function updateRings(raw) {
+  if (Array.isArray(raw)) { S.rings = raw; }
+  else if (typeof raw === 'object') { S.rings = Object.entries(raw).map(([name,data]) => ({name,...data})); }
+  renderAll();
+}
+function updateSessions(raw) {
+  if (Array.isArray(raw)) S.sessions = raw;
+  renderSessions();
+}
+
+function addLog(data) {
+  S.eventLog.unshift({ts:new Date(),data});
+  if (S.eventLog.length > 50) S.eventLog.pop();
+  renderLog();
+}
+
+/* ═══ RENDER: ORGANISM SVG ═══ */
+function renderOrganism() {
+  const svg = document.getElementById('organism-svg');
+  const rect = svg.parentElement.getBoundingClientRect();
+  const W = rect.width || 800, H = rect.height || 600;
+  const cx = W/2, cy = H/2;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+
+  const rings = S.rings;
+  if (!rings.length) {
+    svg.innerHTML = `
+      <defs><radialGradient id="bg-gradient" cx="50%" cy="50%" r="60%">
+        <stop offset="0%" stop-color="#0a0a1a"/><stop offset="100%" stop-color="#06060c"/>
+      </radialGradient></defs>
+      <rect width="${W}" height="${H}" fill="url(#bg-gradient)"/>
+      <text x="${cx}" y="${cy-20}" text-anchor="middle" fill="var(--fg3)" font-size="16" font-family="inherit" font-weight="600">CSOS Organism</text>
+      <text x="${cx}" y="${cy+10}" text-anchor="middle" fill="var(--fg3)" font-size="12" font-family="inherit">Loading rings...</text>
+      <text x="${cx}" y="${cy+35}" text-anchor="middle" fill="var(--cyan)" font-size="11" font-family="inherit" opacity=".5">Try: Equate • Diagnose • session list</text>
+      <circle cx="${cx}" cy="${cy-60}" r="30" fill="none" stroke="var(--fg3)" stroke-width="1" stroke-dasharray="4 4" opacity=".3">
+        <animateTransform attributeName="transform" type="rotate" from="0 ${cx} ${cy-60}" to="360 ${cx} ${cy-60}" dur="4s" repeatCount="indefinite"/>
+      </circle>`;
+    return;
+  }
+
+  /* Find ecosystem rings by name (support partial matches for robustness) */
+  const d = rings.find(r => r.name==='eco_domain' || r.name?.includes('domain'));
+  const k = rings.find(r => r.name==='eco_cockpit' || r.name?.includes('cockpit'));
+  const o = rings.find(r => r.name==='eco_organism' || r.name?.includes('organism'));
+  if (!d && !k && !o) {
+    /* No eco rings found — show all rings generically */
+    svg.innerHTML = `
+      <rect width="${W}" height="${H}" fill="#06060c"/>
+      <text x="${cx}" y="${cy}" text-anchor="middle" fill="var(--fg3)" font-size="13" font-family="inherit">
+        ${rings.length} rings found but no eco_domain/cockpit/organism. Run: make seed
+      </text>`;
+    return;
+  }
+  /* Fallback: use whatever we have */
+  const domain = d || rings[0] || {gradient:0,speed:0,equation:{}};
+  const cockpit = k || rings[1] || {gradient:0,speed:0,equation:{}};
+  const organism = o || rings[2] || {gradient:0,speed:0,equation:{}};
+
+  /* Ring radii — organism is largest (outer), domain is smallest (inner) */
+  const maxR = Math.min(W, H) * 0.42;
+  const ringData = [
+    {ring:domain, r:maxR*0.35, color:COLORS.domain, label:'Domain', n:1},
+    {ring:cockpit, r:maxR*0.65, color:COLORS.cockpit, label:'Cockpit', n:2},
+    {ring:organism, r:maxR*1.0,  color:COLORS.organism, label:'Organism', n:3},
+  ];
+
+  let html = '';
+
+  /* Defs: glow filters and gradients */
+  html += `<defs>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="glow-strong"><feGaussianBlur stdDeviation="6" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="bg-gradient" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#0a0a1a"/>
+      <stop offset="100%" stop-color="#06060c"/>
+    </radialGradient>
+  </defs>`;
+
+  /* Background */
+  html += `<rect width="${W}" height="${H}" fill="url(#bg-gradient)"/>`;
+
+  /* Connection lines (Forster coupling) */
+  ringData.forEach((rd, i) => {
+    if (i < ringData.length - 1) {
+      const next = ringData[i+1];
+      const gap = rd.ring.gradient_gap || 0;
+      const opacity = Math.min(0.6, Math.abs(gap) / 10000 + 0.1);
+      html += `<circle cx="${cx}" cy="${cy}" r="${(rd.r + next.r)/2}" fill="none" stroke="${rd.color}" stroke-width="1" stroke-dasharray="4 8" opacity="${opacity}"/>`;
+    }
+  });
+
+  /* Rings: concentric circles that breathe with vitality */
+  ringData.forEach((rd, i) => {
+    const eq = rd.ring.equation || {};
+    const v = eq.vitality || 0;
+    const breathScale = 1 + v * 0.03; /* Subtle breathing based on vitality */
+    const opacity = 0.3 + v * 0.5;
+    const strokeW = 1.5 + v * 1.5;
+
+    /* Ring circle */
+    html += `<circle class="ring-circle" cx="${cx}" cy="${cy}" r="${rd.r * breathScale}"
+      stroke="${rd.color}" stroke-width="${strokeW}" opacity="${opacity}"
+      data-ring="${rd.ring.name}" onclick="selectRing('${rd.ring.name}')"/>`;
+
+    /* Glow when vitality high */
+    if (v > 0.3) {
+      html += `<circle cx="${cx}" cy="${cy}" r="${rd.r * breathScale}" fill="none"
+        stroke="${rd.color}" stroke-width="1" opacity="${v * 0.2}" filter="url(#glow)"/>`;
+    }
+
+    /* Label + metrics on the ring */
+    const ly = cy - rd.r - 14;
+    html += `<text class="ring-label" x="${cx}" y="${ly}" fill="${rd.color}">${rd.label} (n=${rd.n})</text>`;
+
+    /* Gradient value at 3 o'clock */
+    const gx = cx + rd.r + 10, gy = cy;
+    html += `<text x="${gx}" y="${gy-6}" font-size="10" fill="${rd.color}" font-family="inherit" opacity=".7">\u2207 ${fmt(rd.ring.gradient)}</text>`;
+    html += `<text x="${gx}" y="${gy+8}" font-size="10" fill="var(--fg3)" font-family="inherit">spd ${(rd.ring.speed||0).toFixed(1)}</text>`;
+
+    /* Atoms as dots on the ring circumference */
+    const atomCount = rd.ring.atoms || 5;
+    for (let a = 0; a < Math.min(atomCount, 24); a++) {
+      const angle = (a / atomCount) * Math.PI * 2 - Math.PI/2;
+      const ax = cx + rd.r * Math.cos(angle) * breathScale;
+      const ay = cy + rd.r * Math.sin(angle) * breathScale;
+      const dotR = a < 5 ? 4 : 2.5; /* Foundation atoms are bigger */
+      const dotColor = a < 5 ? Object.values(EQ_COLORS)[a] : 'var(--calvin)';
+      html += `<circle class="atom-dot" cx="${ax}" cy="${ay}" r="${dotR}" fill="${dotColor}" opacity=".7"
+        onmouseenter="showBridge(event, ${a < 5 ? `'${Object.keys(EQ_COLORS)[a]}'` : `'calvin'`})"
+        onmouseleave="hideBridge()"/>`;
+    }
+
+    /* Decision badge */
+    const dec = rd.ring.decision || 'EXPLORE';
+    const decColor = dec==='EXECUTE'?'var(--green)':dec==='EXPLORE'?'var(--blue)':dec==='ASK'?'var(--amber)':'var(--fg3)';
+    if (i === 2) { /* Only show decision on organism ring */
+      html += `<text x="${cx}" y="${cy + rd.r + 20}" text-anchor="middle" font-size="11" font-weight="600" fill="${decColor}" font-family="inherit">${dec}</text>`;
+    }
+  });
+
+  /* Center: Vitality heartbeat */
+  const ov = S.orgVitality || 0;
+  const vColor = ov > 0.5 ? '#00e676' : ov > 0.3 ? '#ffb300' : ov > 0.1 ? '#ff5252' : '#555570';
+  const vGlow = ov > 0.3 ? 'filter="url(#glow-strong)"' : '';
+  html += `<circle cx="${cx}" cy="${cy}" r="${30 + ov * 15}" fill="${vColor}11" stroke="${vColor}" stroke-width="2" class="vitality-glow" ${vGlow}/>`;
+  html += `<text class="ring-vitality" x="${cx}" y="${cy}" fill="${vColor}" font-family="inherit">${(ov*100).toFixed(0)}%</text>`;
+  html += `<text x="${cx}" y="${cy+20}" text-anchor="middle" font-size="10" fill="var(--fg3)" font-family="inherit">vitality</text>`;
+
+  /* Equation flow labels (between rings) */
+  const eqNames = ['Gouterman','Forster','Marcus','Mitchell','Boyer'];
+  const eqKeys = ['gouterman','forster','marcus','mitchell','boyer'];
+  eqKeys.forEach((key, i) => {
+    const angle = (i / 5) * Math.PI * 2 - Math.PI/2;
+    const labelR = maxR * 0.18;
+    const lx = cx + labelR * Math.cos(angle);
+    const ly = cy + labelR * Math.sin(angle);
+    const eq = domain.equation || {};
+    const val = eq[key] || 0;
+    html += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="9" fill="${EQ_COLORS[key]}" font-family="inherit" opacity="${0.4 + val * 0.6}"
+      onmouseenter="showBridge(event,'${key}')" onmouseleave="hideBridge()" style="cursor:pointer">${eqNames[i]}</text>`;
+  });
+
+  /* ═══ CONVERGENCE LINES (Forster coupling between sessions) ═══
+   * When sessions converge, their Calvin patterns overlap.
+   * Visualize as energy transfer arcs between session positions on the organism ring.
+   * Stronger coupling = brighter, thicker line. Merged = solid green. */
+  if (S.convergences.length && S.sessions.length > 1) {
+    const sessNames = S.sessions.map(s => s.id);
+    S.convergences.forEach(conv => {
+      const si = sessNames.indexOf(conv.src);
+      const di = sessNames.indexOf(conv.dst);
+      if (si < 0 || di < 0) return;
+      const n = sessNames.length;
+      const r = maxR * 0.82;  /* Between cockpit and organism rings */
+      const aS = (si / n) * Math.PI * 2 - Math.PI/2;
+      const aD = (di / n) * Math.PI * 2 - Math.PI/2;
+      const x1 = cx + r * Math.cos(aS), y1 = cy + r * Math.sin(aS);
+      const x2 = cx + r * Math.cos(aD), y2 = cy + r * Math.sin(aD);
+      const strength = Math.min(1, conv.coupling);
+      const color = conv.coupled ? 'var(--green)' : 'var(--forster)';
+      const opacity = 0.2 + strength * 0.6;
+      const width = 1 + strength * 2;
+      /* Curved arc through center */
+      const mx = cx + (r * 0.3) * Math.cos((aS+aD)/2);
+      const my = cy + (r * 0.3) * Math.sin((aS+aD)/2);
+      html += `<path d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" fill="none"
+        stroke="${color}" stroke-width="${width}" opacity="${opacity}"
+        stroke-dasharray="${conv.coupled ? 'none' : '4 4'}"/>`;
+      /* Dots at session positions */
+      html += `<circle cx="${x1}" cy="${y1}" r="4" fill="${color}" opacity="${opacity+0.1}"
+        onmouseenter="showConvergence(event,'${conv.src}','${conv.dst}',${strength})"
+        onmouseleave="hideBridge()" style="cursor:pointer"/>`;
+      html += `<circle cx="${x2}" cy="${y2}" r="4" fill="${color}" opacity="${opacity+0.1}" style="cursor:pointer"/>`;
+      /* Label */
+      const lx = (x1+x2)/2, ly = (y1+y2)/2 - 8;
+      if (strength > 0.3) {
+        html += `<text x="${lx}" y="${ly}" text-anchor="middle" font-size="9"
+          fill="${color}" opacity="${opacity}" font-family="inherit">${(strength*100).toFixed(0)}%</text>`;
+      }
+    });
+  }
+
+  /* Session position dots on outer ring (even without convergence) */
+  if (S.sessions.length > 0) {
+    const n = S.sessions.length;
+    const r = maxR * 0.82;
+    S.sessions.forEach((s, i) => {
+      const angle = (i / n) * Math.PI * 2 - Math.PI/2;
+      const sx = cx + r * Math.cos(angle), sy = cy + r * Math.sin(angle);
+      const stageColors = {seed:'var(--fg3)',sprout:'var(--blue)',grow:'var(--cyan)',
+        bloom:'var(--green)',harvest:'var(--amber)',dormant:'var(--fg3)'};
+      const c = stageColors[s.stage] || 'var(--fg3)';
+      const v = s.vitality || 0;
+      html += `<circle cx="${sx}" cy="${sy}" r="${3 + v * 3}" fill="${c}" opacity="${0.4 + v * 0.4}"
+        style="cursor:pointer" onclick="observeSession('${s.id}')"
+        onmouseenter="showSessionTip(event,'${s.id}')" onmouseleave="hideBridge()"/>`;
+      html += `<text x="${sx}" y="${sy + 14}" text-anchor="middle" font-size="8"
+        fill="${c}" opacity=".6" font-family="inherit">${s.id.slice(0,8)}</text>`;
+    });
+  }
+
+  /* Particle container */
+  html += `<g id="particle-layer"></g>`;
+
+  svg.innerHTML = html;
+}
+
+/* ═══ RENDER: TOP BAR ═══ */
+function renderTopBar() {
+  const ov = S.orgVitality || 0;
+  const vb = document.getElementById('vitality-badge');
+  if (!vb) return;
+  const vColor = ov > 0.5 ? '#00e676' : ov > 0.3 ? '#ffb300' : ov > 0.1 ? '#ff5252' : '#555570';
+  vb.style.background = vColor + '22';
+  vb.style.color = vColor;
+  vb.textContent = S.rings.length ? `\u2665 ${(ov*100).toFixed(1)}%` : '-- connecting --';
+
+  /* Equation pills */
+  const pills = document.getElementById('eq-pills');
+  const org = S.rings.find(r => r.name==='eco_organism' || r.name?.includes('organism'));
+  const eq = org?.equation || {};
+  const keys = ['gouterman','forster','marcus','mitchell','boyer'];
+  pills.innerHTML = keys.map(k => {
+    const v = eq[k] || 0;
+    return `<span class="eq-pill" style="background:${EQ_COLORS[k]}22;color:${EQ_COLORS[k]}"
+      onmouseenter="showBridge(event,'${k}')" onmouseleave="hideBridge()">${k[0].toUpperCase()} ${(v*100).toFixed(0)}%</span>`;
+  }).join('');
+
+  /* Cycle count + decision */
+  const cc = document.getElementById('cycle-count');
+  const db = document.getElementById('decision-badge');
+  if (org) {
+    cc.textContent = fmt(org.cycles) + ' cycles';
+    const dec = org.decision || 'EXPLORE';
+    db.innerHTML = `<span class="badge badge-${dec.toLowerCase()}">${dec}</span>`;
+  }
+}
+
+/* ═══ RENDER: EQUATION BARS ═══ */
+function renderEquationBars() {
+  const el = document.getElementById('equation-bars');
+  if (!el) return;
+  const org = S.rings.find(r => r.name==='eco_organism' || r.name?.includes('organism'));
+  const eq = org?.equation || {};
+  if (!org) {
+    el.innerHTML = '<div style="padding:6px 0;color:var(--fg3);font-size:11px">Waiting for ring data... Run <code>Equate</code></div>';
+    return;
+  }
+  const keys = ['gouterman','forster','marcus','mitchell','boyer'];
+  const names = ['Gouterman','Forster','Marcus','Mitchell','Boyer'];
+  el.innerHTML = keys.map((k,i) => {
+    const v = eq[k] || 0;
+    return `<div class="eq-bar" onmouseenter="showBridge(event,'${k}')" onmouseleave="hideBridge()">
+      <span class="name" style="color:${EQ_COLORS[k]}">${names[i]}</span>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${v*100}%;background:${EQ_COLORS[k]}"></div></div>
+      <span class="val">${(v*100).toFixed(1)}%</span>
+    </div>`;
+  }).join('') + `<div class="eq-bar" style="border-top:1px solid var(--bg4)">
+    <span class="name" style="color:var(--green);font-size:13px">Vitality</span>
+    <div class="bar-wrap" style="height:8px"><div class="bar-fill" style="width:${(eq.vitality||0)*100}%;background:var(--green)"></div></div>
+    <span class="val" style="font-weight:700;color:var(--green)">${((eq.vitality||0)*100).toFixed(1)}%</span>
+  </div>`;
+}
+
+/* ═══ RENDER: RING DETAILS ═══ */
+function renderRingDetails() {
+  const el = document.getElementById('ring-details');
+  if (!el) return;
+  if (!S.rings.length) {
+    el.innerHTML = '<div style="padding:6px 0;color:var(--fg3);font-size:11px">No rings loaded. Run <code>Diagnose</code></div>';
+    return;
+  }
+  const order = ['eco_domain','eco_cockpit','eco_organism'];
+  const labels = {eco_domain:'Domain',eco_cockpit:'Cockpit',eco_organism:'Organism'};
+  el.innerHTML = order.map(name => {
+    const r = S.rings.find(x => x.name === name || x.name?.includes(name.replace('eco_','')));
+    if (!r) return '';
+    const c = COLORS[name.replace('eco_','')];
+    const eq = r.equation || {};
+    const dec = r.decision || 'EXPLORE';
+    return `<div class="ring-detail" onclick="selectRing('${name}')" style="cursor:pointer;${S.selectedRing===name?'background:var(--bg3)':''}">
+      <div class="rd-name"><span style="color:${c}">${labels[name]}</span>
+        <span class="badge badge-${dec.toLowerCase()}" style="font-size:9px">${dec}</span></div>
+      <div class="rd-grid">
+        <span class="rd-label">\u2207 gradient</span><span class="rd-val">${fmt(r.gradient)}</span>
+        <span class="rd-label">speed</span><span class="rd-val">${(r.speed||0).toFixed(2)}</span>
+        <span class="rd-label">F (error)</span><span class="rd-val">${(r.F||0).toFixed(3)}</span>
+        <span class="rd-label">rw</span><span class="rd-val">${(r.rw||0).toFixed(3)}</span>
+        <span class="rd-label">vitality</span><span class="rd-val" style="color:${c}">${((eq.vitality||0)*100).toFixed(1)}%</span>
+        <span class="rd-label">n</span><span class="rd-val">${r.mitchell_n||'?'}</span>
+        <span class="rd-label">atoms</span><span class="rd-val">${r.atoms||'?'}</span>
+        <span class="rd-label">motors</span><span class="rd-val">${r.motor_count||0}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══ RENDER: SESSIONS (Living Equations) ═══ */
+function renderSessions() {
+  const el = document.getElementById('session-cards');
+  const ct = document.getElementById('sess-count');
+  if (!el) return;
+  const sessions = S.sessions || [];
+  ct.textContent = sessions.length ? `(${sessions.length})` : '';
+  if (!sessions.length) { el.innerHTML='<div style="padding:4px 0;color:var(--fg3);font-size:11px">No sessions. Use: session spawn</div>'; return; }
+
+  const stageColors = {seed:'var(--fg3)',sprout:'var(--blue)',grow:'var(--cyan)',bloom:'var(--green)',harvest:'var(--amber)',dormant:'var(--fg3)'};
+  const stageIcons = {seed:'\u25CB',sprout:'\u25D4',grow:'\u25D1',bloom:'\u25CF',harvest:'\u2605',dormant:'\u25CC'};
+
+  el.innerHTML = sessions.map(s => {
+    const c = stageColors[s.stage] || 'var(--fg3)';
+    const icon = stageIcons[s.stage] || '';
+    const vPct = (s.vitality||0)*100;
+    const hasIngress = s.ingress && s.ingress !== '';
+    const hasEgress = s.egress && s.egress !== '';
+    const isAuto = s.autonomous;
+    return `<div class="sess-card" onclick="observeSession('${s.id}')">
+      <div class="sc-top">
+        <span class="sc-name" style="color:${c}">${icon} ${s.id}</span>
+        <span class="badge badge-${(s.stage||'seed')}"
+          style="background:${c}22;color:${c};font-size:9px">${s.stage}</span>
+      </div>
+      ${s.binding ? `<div class="sc-binding">\u21D2 ${s.binding}</div>` : ''}
+      <div class="sc-bar"><div class="sc-fill" style="width:${vPct}%;background:${c}"></div></div>
+      <div class="sc-stats">
+        <span>v=${vPct.toFixed(0)}%</span>
+        <span>${s.deliveries||0} delivers</span>
+        <span>${s.ticks||0} ticks</span>
+        ${isAuto ? `<span style="color:var(--green)">\u23F1 ${s.interval}s</span>` : ''}
+      </div>
+      <div class="sc-io">
+        ${hasIngress ? `<span style="color:var(--cyan)">\u2B07 ${s.ingress}</span>` : ''}
+        ${hasEgress ? `<span style="color:var(--amber)">\u2B06 ${s.egress}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* observeSession: read-only — expands detail in activity log */
+async function observeSession(id) {
+  const r = await cmd({action:'session',sub:'observe',id});
+  addLog({action:'session:observe', session:id, ...r});
+}
+
+/* ═══ RENDER: LOG ═══ */
+function renderLog() {
+  const el = document.getElementById('agent-log');
+  if (!S.eventLog.length) { el.innerHTML = '<div style="padding:8px 14px;color:var(--fg3);font-size:11px">Waiting for signals...</div>'; return; }
+  el.innerHTML = S.eventLog.slice(0, 30).map(ev => {
+    const d = ev.data;
+    const ts = ev.ts ? new Date(ev.ts).toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '';
+    const dec = d.decision || d.physics?.decision || '';
+    const delta = d.delta !== undefined ? d.delta : (d.physics?.delta || '');
+    const vit = d.vitality !== undefined ? d.vitality : (d.physics?.vitality || '');
+    return `<div class="log-entry">
+      <span class="ts">${ts}</span>
+      <span class="dec badge badge-${(dec+'').toLowerCase()}">${dec}</span>
+      <span class="info">\u0394${delta} ${vit ? `v=${(vit*100).toFixed(0)}%` : ''} ${d.substrate||d.action||''}</span>
+    </div>`;
+  }).join('');
+}
+
+/* ═══ BRIDGE TOOLTIP ═══ */
+function showBridge(event, eqKey) {
+  const tt = document.getElementById('bridge-tooltip');
+  const info = EQ_PHYSICS[eqKey];
+  if (!info) {
+    /* Calvin */
+    tt.innerHTML = `<div class="bt-title" style="color:var(--calvin)">Calvin Cycle</div>
+      <div class="bt-row"><span class="bt-label">Living:</span><span class="bt-val">Carbon fixation producing sugar from CO\u2082</span></div>
+      <div class="bt-row"><span class="bt-label">Conceptual:</span><span class="bt-val">Pattern synthesis from non-resonated signals</span></div>`;
+  } else {
+    const org = S.rings.find(r => r.name==='eco_organism');
+    const eq = org?.equation || {};
+    const val = eq[eqKey] || 0;
+    tt.innerHTML = `<div class="bt-title" style="color:${EQ_COLORS[eqKey]}">${eqKey.charAt(0).toUpperCase()+eqKey.slice(1)} &mdash; ${info.formula}</div>
+      <div class="bt-row"><span class="bt-label">Value:</span><span class="bt-val" style="color:${EQ_COLORS[eqKey]};font-weight:700">${(val*100).toFixed(1)}%</span></div>
+      <div class="bt-row"><span class="bt-label" style="color:var(--green)">Living:</span><span class="bt-val">${info.living}</span></div>
+      <div class="bt-row"><span class="bt-label" style="color:var(--cyan)">Conceptual:</span><span class="bt-val">${info.conceptual}</span></div>`;
+  }
+  tt.style.left = Math.min(event.clientX + 12, window.innerWidth - 340) + 'px';
+  tt.style.top = Math.min(event.clientY - 10, window.innerHeight - 160) + 'px';
+  tt.classList.add('show');
+}
+function hideBridge() { document.getElementById('bridge-tooltip').classList.remove('show'); }
+
+/* ═══ CONVERGENCE TOOLTIP ═══ */
+function showConvergence(event, src, dst, strength) {
+  const tt = document.getElementById('bridge-tooltip');
+  const pct = (strength*100).toFixed(1);
+  const status = strength > 0.7 ? 'Strong convergence — auto-merge likely' :
+                 strength > 0.3 ? 'Moderate overlap — patterns aligning' : 'Weak coupling — different substrates';
+  tt.innerHTML = `<div class="bt-title" style="color:var(--forster)">Forster Coupling</div>
+    <div class="bt-row"><span class="bt-label">Sessions:</span><span class="bt-val">${src} ↔ ${dst}</span></div>
+    <div class="bt-row"><span class="bt-label">Coupling:</span><span class="bt-val" style="color:var(--forster);font-weight:700">${pct}%</span></div>
+    <div class="bt-row"><span class="bt-label">Status:</span><span class="bt-val">${status}</span></div>
+    <div class="bt-row"><span class="bt-label" style="color:var(--green)">Living:</span><span class="bt-val">Resonance energy transfer between antenna complexes</span></div>
+    <div class="bt-row"><span class="bt-label" style="color:var(--cyan)">Conceptual:</span><span class="bt-val">Cross-session pattern overlap → knowledge transfer</span></div>`;
+  tt.style.left = Math.min(event.clientX + 12, window.innerWidth - 340) + 'px';
+  tt.style.top = Math.min(event.clientY - 10, window.innerHeight - 160) + 'px';
+  tt.classList.add('show');
+}
+
+/* ═══ SESSION TIP (on organism ring dots) ═══ */
+function showSessionTip(event, id) {
+  const s = S.sessions.find(x => x.id === id);
+  if (!s) return;
+  const tt = document.getElementById('bridge-tooltip');
+  const stageDesc = {seed:'Waiting for first signal',sprout:'Building gradient',
+    grow:'Calvin synthesizing patterns',bloom:'Ready to deliver (EXECUTE)',
+    harvest:'Delivered, seeds harvested',dormant:'Resting, motor memory persists'};
+  tt.innerHTML = `<div class="bt-title" style="color:var(--cyan)">${s.id}</div>
+    <div class="bt-row"><span class="bt-label">Stage:</span><span class="bt-val">${s.stage} — ${stageDesc[s.stage]||''}</span></div>
+    <div class="bt-row"><span class="bt-label">Vitality:</span><span class="bt-val" style="font-weight:700">${((s.vitality||0)*100).toFixed(1)}%</span></div>
+    ${s.binding ? `<div class="bt-row"><span class="bt-label">Binding:</span><span class="bt-val">${s.binding}</span></div>` : ''}
+    ${s.autonomous ? `<div class="bt-row"><span class="bt-label">Rhythm:</span><span class="bt-val">Every ${s.interval}s (autonomous)</span></div>` : ''}
+    <div class="bt-row"><span class="bt-label" style="color:var(--fg3);font-size:10px">Click to observe</span></div>`;
+  tt.style.left = Math.min(event.clientX + 12, window.innerWidth - 340) + 'px';
+  tt.style.top = Math.min(event.clientY - 10, window.innerHeight - 160) + 'px';
+  tt.classList.add('show');
+}
+
+/* ═══ RING SELECTION ═══ */
+function selectRing(name) {
+  S.selectedRing = S.selectedRing === name ? null : name;
+  renderRingDetails();
+  renderOrganism();
+}
+
+/* ═══ FLOW PARTICLES ═══ */
+function spawnParticles() {
+  /* Visual cue: spawn a few particles that flow from outer ring to center */
+  const svg = document.getElementById('organism-svg');
+  const pl = document.getElementById('particle-layer');
+  if (!pl) return;
+  const rect = svg.parentElement.getBoundingClientRect();
+  const cx = rect.width/2, cy = rect.height/2;
+  const maxR = Math.min(rect.width, rect.height) * 0.42;
+
+  for (let i = 0; i < 3; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const startR = maxR * (0.8 + Math.random() * 0.2);
+    const sx = cx + startR * Math.cos(angle);
+    const sy = cy + startR * Math.sin(angle);
+    const colors = Object.values(EQ_COLORS);
+    const color = colors[Math.floor(Math.random() * colors.length)];
+
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('r','3');
+    circle.setAttribute('fill',color);
+    circle.setAttribute('opacity','0.8');
+    circle.setAttribute('cx', sx);
+    circle.setAttribute('cy', sy);
+    pl.appendChild(circle);
+
+    /* Animate towards center */
+    const duration = 800 + Math.random() * 400;
+    const start = performance.now();
+    function animate(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const ease = 1 - Math.pow(1 - t, 3);
+      circle.setAttribute('cx', sx + (cx - sx) * ease);
+      circle.setAttribute('cy', sy + (cy - sy) * ease);
+      circle.setAttribute('opacity', (1 - t) * 0.8);
+      circle.setAttribute('r', 3 - t * 2);
+      if (t < 1) requestAnimationFrame(animate);
+      else pl.removeChild(circle);
+    }
+    requestAnimationFrame(animate);
+  }
+}
+
+/* ═══ GAP ANALYSIS ENGINE ═══
+ *
+ * The Rule: Canvas OBSERVES. Agents ACT. Membrane COMPUTES.
+ *
+ * Canvas analyzes the organism state and surfaces GAPS — physics-driven
+ * observations of what the system needs to tackle greater complexity.
+ * Each gap includes the terminal command to fix it via OpenCode agents.
+ *
+ * 8 gap types (from data_flow_diagram.html):
+ *   1. Gouterman < 30%  → signal diversity too low
+ *   2. Marcus < 50%     → prediction error high
+ *   3. Mitchell < 30%   → gradient stagnant
+ *   4. Boyer < 50%      → decision gate closed
+ *   5. Forster < 30%    → cross-pollination weak
+ *   6. Session unbound  → no ingress connected
+ *   7. Session dormant  → scheduled but not producing
+ *   8. Session bloom    → ready to deliver
+ */
+
+function analyzeGaps() {
+  const gaps = [];
+  const hints = [];
+
+  /* ── Equation gaps (from organism ring) ── */
+  const org = S.rings.find(r => r.name==='eco_organism' || r.name?.includes('organism'));
+  const dom = S.rings.find(r => r.name==='eco_domain' || r.name?.includes('domain'));
+  const eq = org?.equation || {};
+
+  if (eq.gouterman !== undefined && eq.gouterman < 0.3) {
+    gaps.push({severity:'critical', color:'var(--red)', icon:'\u26a0',
+      title:'Signal diversity too low', eq:'Gouterman',
+      detail:`Gouterman at ${(eq.gouterman*100).toFixed(0)}% \u2014 organism not absorbing enough distinct signal types.`,
+      agent:'@csos-operator', cmd:'csos-core substrate="new_signal" output="<your data>"',
+      why:'Bind sessions to diverse ingress sources to widen the spectral range.'});
+    hints.push({agent:'@operator', cmd:'csos-core substrate="market" output="SPY 523 vol 45M"', why:'Feed diverse signals'});
+  }
+
+  if (eq.marcus !== undefined && eq.marcus < 0.5) {
+    const F = dom?.F || org?.F || 0;
+    gaps.push({severity: F > 5 ? 'critical' : 'warning', color: F > 5 ? 'var(--red)' : 'var(--amber)', icon: F > 5 ? '\u26a0' : '\u25b2',
+      title:'Prediction error high', eq:'Marcus',
+      detail:`Marcus at ${(eq.marcus*100).toFixed(0)}%, F=${F.toFixed(1)} \u2014 predictions diverging from reality.`,
+      agent:'@csos-operator', cmd:'csos-core session=tick_all',
+      why:'Increase tick frequency to give Marcus more prediction-vs-actual data points.'});
+    hints.push({agent:'@operator', cmd:'csos-core session=tick_all', why:'More ticks = more error correction'});
+  }
+
+  if (eq.mitchell !== undefined && eq.mitchell < 0.3) {
+    gaps.push({severity:'warning', color:'var(--amber)', icon:'\u25b2',
+      title:'Gradient stagnant', eq:'Mitchell',
+      detail:`Mitchell at ${(eq.mitchell*100).toFixed(0)}% \u2014 evidence not accumulating. Check ingress health.`,
+      agent:'@csos-observer', cmd:'csos-core ring=eco_domain detail=full',
+      why:'Observer should diagnose whether ingress bindings are delivering data.'});
+    hints.push({agent:'@observer', cmd:'csos-core ring=eco_domain detail=full', why:'Diagnose ingress health'});
+  }
+
+  if (eq.boyer !== undefined && eq.boyer < 0.5) {
+    gaps.push({severity:'warning', color:'var(--amber)', icon:'\u25b2',
+      title:'Decision gate closed', eq:'Boyer',
+      detail:`Boyer at ${(eq.boyer*100).toFixed(0)}% \u2014 not enough evidence for confident decisions.`,
+      agent:'@csos-operator', cmd:'csos-core session=tick_all',
+      why:'More signal volume pushes speed past rw threshold, opening the Boyer gate.'});
+  }
+
+  if (eq.forster !== undefined && eq.forster < 0.3) {
+    gaps.push({severity:'info', color:'var(--cyan)', icon:'\u25cf',
+      title:'Cross-pollination weak', eq:'Forster',
+      detail:`Forster at ${(eq.forster*100).toFixed(0)}% \u2014 sessions are isolated, no knowledge transfer.`,
+      agent:'@csos-analyst', cmd:'csos-core greenhouse',
+      why:'Analyst should check convergence and recommend session merges.'});
+    hints.push({agent:'@analyst', cmd:'csos-core greenhouse', why:'Find convergence opportunities'});
+  }
+
+  /* ── Session gaps ── */
+  const sessions = S.sessions || [];
+
+  const unbound = sessions.filter(s => !s.binding && !s.ingress);
+  if (unbound.length) {
+    gaps.push({severity:'critical', color:'var(--red)', icon:'\u26a0',
+      title:`${unbound.length} session${unbound.length>1?'s':''} unbound`, eq:'Session',
+      detail:`${unbound.map(s=>s.id).join(', ')} \u2014 no ingress connected. Sessions cannot grow without external data.`,
+      agent:'@csos-operator', cmd:`csos-core session=bind id="${unbound[0].id}" binding="<system>" ingress_type="url" ingress_source="<url>"`,
+      why:'Run the question flow: identity \u2192 binding \u2192 output \u2192 rhythm.'});
+    hints.push({agent:'@operator', cmd:`csos-core session=bind id="${unbound[0].id}" binding="<system>"`, why:'Connect ingress'});
+  }
+
+  const dormant = sessions.filter(s => s.stage === 'dormant' && (s.vitality||0) < 0.01);
+  if (dormant.length) {
+    gaps.push({severity:'warning', color:'var(--amber)', icon:'\u25b2',
+      title:`${dormant.length} dormant session${dormant.length>1?'s':''}`, eq:'Session',
+      detail:`${dormant.map(s=>s.id).join(', ')} \u2014 scheduled but producing nothing. Ingress may be failing.`,
+      agent:'@csos-observer', cmd:`csos-core session=observe id="${dormant[0].id}"`,
+      why:'Observer should diagnose why signals are not flowing.'});
+    hints.push({agent:'@observer', cmd:`csos-core session=observe id="${dormant[0].id}"`, why:'Diagnose dormant session'});
+  }
+
+  const blooming = sessions.filter(s => s.stage === 'bloom');
+  if (blooming.length) {
+    gaps.push({severity:'success', color:'var(--green)', icon:'\u2713',
+      title:`${blooming.length} session${blooming.length>1?'s':''} ready to harvest`, eq:'Session',
+      detail:`${blooming.map(s=>s.id).join(', ')} \u2014 Boyer says EXECUTE. Deliver results or let egress fire.`,
+      agent:'@csos-operator', cmd:`csos-core content="harvest ${blooming[0].id}"`,
+      why:'Blooming sessions have accumulated enough evidence. Harvest the output.'});
+    hints.push({agent:'@operator', cmd:`csos-core session=tick id="${blooming[0].id}"`, why:'Harvest blooming session'});
+  }
+
+  /* If no sessions at all, that's the biggest gap */
+  if (!sessions.length) {
+    gaps.push({severity:'critical', color:'var(--red)', icon:'\u26a0',
+      title:'No living equations', eq:'System',
+      detail:'The organism has no sessions. Start the question flow to create a living equation.',
+      agent:'@csos-operator', cmd:'csos-core session=spawn id="my_first" substrate="default"',
+      why:'Every living equation starts with: spawn \u2192 bind \u2192 schedule \u2192 tick.'});
+    hints.push({agent:'@operator', cmd:'csos-core session=spawn id="my_first" substrate="default"', why:'Plant first seed'});
+  }
+
+  /* Always provide a diagnose hint */
+  hints.push({agent:'@observer', cmd:'csos-core equate', why:'Full vitality check'});
+  hints.push({agent:'@analyst', cmd:'csos-core events', why:'Recent event patterns'});
+
+  return {gaps, hints};
+}
+
+/* ═══ RENDER: GAP ANALYSIS ═══ */
+function renderGaps() {
+  const el = document.getElementById('gap-items');
+  const countEl = document.getElementById('gap-count');
+  const topEl = document.getElementById('gap-count-top');
+  if (!el) return;
+
+  const {gaps, hints} = analyzeGaps();
+
+  /* Update counts */
+  const critical = gaps.filter(g => g.severity === 'critical').length;
+  const warning = gaps.filter(g => g.severity === 'warning').length;
+  if (countEl) countEl.textContent = gaps.length ? `(${gaps.length})` : '';
+  if (topEl) {
+    if (critical) { topEl.textContent = `${critical} critical`; topEl.style.color = 'var(--red)'; }
+    else if (warning) { topEl.textContent = `${warning} gap${warning>1?'s':''}`; topEl.style.color = 'var(--amber)'; }
+    else if (gaps.length) { topEl.textContent = `${gaps.length} info`; topEl.style.color = 'var(--cyan)'; }
+    else { topEl.textContent = '\u2713 healthy'; topEl.style.color = 'var(--green)'; }
+  }
+
+  if (!gaps.length) {
+    el.innerHTML = '<div style="padding:8px 0;color:var(--green);font-size:11px">\u2713 System healthy. All equations strong. No gaps detected.</div>';
+  } else {
+    el.innerHTML = gaps.map((g,i) => `<div class="gap-item">
+      <div class="gap-header">
+        <div class="gap-icon" style="background:${g.color}"></div>
+        <div class="gap-title" style="color:${g.color}">${g.title}</div>
+      </div>
+      <div class="gap-detail">${g.detail}</div>
+      <div class="gap-detail" style="color:var(--fg3)">${g.why}</div>
+      <div class="gap-cmd-wrap">
+        <code class="gap-cmd">${g.cmd}</code>
+        <button class="copy-btn" onclick="copyCmd(this,'${g.cmd.replace(/'/g,"\\'")}')">copy</button>
+      </div>
+      <div class="gap-agent">${g.agent} \u2014 run in terminal</div>
+    </div>`).join('');
+  }
+
+  /* Also fetch server-side recommendations (membrane-computed) */
+  fetchMembraneRecommendations();
+
+  /* Render terminal hints */
+  renderTerminalHints(hints);
+}
+
+/* ═══ MEMBRANE RECOMMENDATIONS (server-side, supplements client gaps) ═══ */
+async function fetchMembraneRecommendations() {
+  try {
+    const r = await cmd({action:'recommend'});
+    if (!r.recommendations || !r.recommendations.length) return;
+    const el = document.getElementById('gap-items');
+    if (!el) return;
+    /* Append membrane recommendations after client-side gaps */
+    const extra = r.recommendations.map(rec => {
+      const colors = {critical:'var(--red)',warning:'var(--amber)',info:'var(--cyan)',success:'var(--green)'};
+      const c = colors[rec.severity] || 'var(--fg3)';
+      return `<div class="gap-item">
+        <div class="gap-header">
+          <div class="gap-icon" style="background:${c}"></div>
+          <div class="gap-title" style="color:${c}">${rec.title}</div>
+        </div>
+        <div class="gap-detail">${rec.detail}</div>
+        ${rec.action ? `<div class="gap-agent">${rec.action}</div>` : ''}
+      </div>`;
+    }).join('');
+    el.innerHTML += extra;
+  } catch(e) { /* membrane not reachable yet */ }
+}
+
+/* ═══ RENDER: TERMINAL HINTS ═══ */
+function renderTerminalHints(hints) {
+  const el = document.getElementById('terminal-hints');
+  if (!el) return;
+  if (!hints || !hints.length) {
+    el.innerHTML = '<div style="padding:4px 0;color:var(--fg3);font-size:10px">Run agents in OpenCode terminal</div>';
+    return;
+  }
+  el.innerHTML = hints.map(h =>
+    `<div class="term-hint">
+      <div class="th-left">
+        <span class="th-agent">${h.agent}</span>
+        <span class="th-cmd">${h.cmd}</span>
+        <div class="th-why">${h.why}</div>
+      </div>
+      <button class="copy-btn" onclick="copyCmd(this,'${h.cmd.replace(/'/g,"\\'")}')">copy</button>
+    </div>`
+  ).join('');
+}
+
+/* ═══ RENDER: EVENTS (read-only) ═══ */
+function renderEvents(events) {
+  const el = document.getElementById('event-feed');
+  if (!el) return;
+  if (!events || !events.length) {
+    el.innerHTML = '<div style="padding:4px 0;color:var(--fg3);font-size:10px">No events yet</div>';
+    return;
+  }
+  const typeClass = {bottleneck:'evt-bottleneck',resolution:'evt-resolution',milestone:'evt-milestone',
+    scheduler:'evt-scheduler',agent:'evt-agent',agent_action:'evt-agent',canvas:'evt-canvas',canvas_action:'evt-canvas'};
+  el.innerHTML = events.slice(-10).reverse().map(ev => {
+    const cls = typeClass[ev.type] || 'evt-canvas';
+    return `<div class="evt ${cls}">
+      <div class="evt-type"></div>
+      <span class="evt-msg">${ev.message||''}</span>
+      ${ev.session ? `<span class="evt-sess">${ev.session}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/* ═══ REFRESH STATE ═══ */
+async function refreshState() {
+  await fetchFullState();
+}
+
+/* ═══ Canvas OBSERVES. Agents ACT. Membrane COMPUTES. ═══ */
+/* ═══ RENDER ALL ═══ */
+function renderAll() {
+  renderOrganism();
+  renderTopBar();
+  renderEquationBars();
+  renderRingDetails();
+  renderSessions();
+  renderGaps();
+}
+
+/* ═══ HELPERS ═══ */
+function fmt(n) { return n !== undefined && n !== null ? Math.round(n).toLocaleString() : '-'; }
+
+/* ═══ COPY TO CLIPBOARD ═══ */
+function copyCmd(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '\u2713 copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1500);
+  }).catch(() => {
+    /* Fallback for non-HTTPS contexts */
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '\u2713 copied';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+/* ═══ QUICK ACTIONS (Scan / Focus / Auto) ═══ */
+async function quickAction(type) {
+  const btn = document.getElementById('btn-' + type);
+  btn.classList.add('running');
+  btn.querySelector('.btn-sub').textContent = 'running...';
+
+  try {
+    if (type === 'scan') {
+      /* Batch feed macro indicators + check organism */
+      await cmd({action:'batch', items:'[{"substrate":"vix","output":"phase:scan"},{"substrate":"dxy","output":"phase:scan"},{"substrate":"sp500","output":"phase:scan"},{"substrate":"nifty50","output":"phase:scan"}]'});
+      const org = await cmd({action:'see', ring:'eco_organism', detail:'cockpit'});
+      const gh = await cmd({action:'greenhouse'});
+      if (gh.convergences) S.convergences = gh.convergences;
+      await fetchFullState();
+      renderAll();
+      btn.querySelector('.btn-sub').textContent = org.decision || 'done';
+    } else if (type === 'focus') {
+      /* Focus on highest-gradient substrate from motor memory */
+      const muscle = await cmd({action:'muscle', ring:'eco_domain'});
+      let target = 'sp500';
+      if (muscle.top && muscle.top.length > 0) {
+        target = 'substrate_' + muscle.top[0].hash;
+      }
+      /* Feed + check the target */
+      await cmd({action:'absorb', substrate:target, output:'phase:focus'});
+      const check = await cmd({action:'see', ring:'eco_domain', detail:'cockpit'});
+      await fetchFullState();
+      renderAll();
+      btn.querySelector('.btn-sub').textContent = check.decision || 'done';
+    } else if (type === 'auto') {
+      /* Full autonomous loop: feed all + check + greenhouse + save */
+      await cmd({action:'batch', items:'[{"substrate":"sp500","output":"phase:auto"},{"substrate":"nasdaq100","output":"phase:auto"},{"substrate":"nifty50","output":"phase:auto"},{"substrate":"vix","output":"phase:auto"},{"substrate":"dxy","output":"phase:auto"},{"substrate":"bitcoin","output":"phase:auto"}]'});
+      const org = await cmd({action:'see', ring:'eco_organism', detail:'cockpit'});
+      await cmd({action:'greenhouse'});
+      await cmd({action:'save'});
+      await fetchFullState();
+      renderAll();
+      btn.querySelector('.btn-sub').textContent = org.decision || 'done';
+    }
+  } catch(e) {
+    btn.querySelector('.btn-sub').textContent = 'error';
+    console.warn('Quick action failed:', e);
+  }
+
+  /* Reset button after 3s */
+  setTimeout(() => {
+    btn.classList.remove('running');
+    const labels = {scan:'regime check', focus:'deep dive', auto:'full loop'};
+    btn.querySelector('.btn-sub').textContent = labels[type];
+  }, 3000);
+}
+
+/* ═══ KEYBOARD SHORTCUTS (read-only observation) ═══ */
+document.addEventListener('keydown', e => {
+  if (e.key === 'r') { renderGaps(); }
+  if (e.key === 's') { quickAction('scan'); }
+  if (e.key === 'f') { quickAction('focus'); }
+  if (e.key === 'a') { quickAction('auto'); }
+  if (e.key === 'F11') { e.preventDefault(); document.documentElement.requestFullscreen?.(); }
+});
+
+/* ═══ RESIZE ═══ */
+let resizeTimer;
+window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(renderOrganism, 100); });
+
+/* ═══ FETCH STATE (reusable) ═══ */
+async function fetchFullState() {
+  try {
+    const state = await fetch('/api/state').then(r => r.json());
+    if (state.rings) updateRings(state.rings);
+    if (state.sessions) updateSessions(state.sessions);
+    if (state.events) renderEvents(state.events);
+    if (state.organism_vitality !== undefined) S.orgVitality = state.organism_vitality;
+    document.getElementById('sse-dot').className = 'dot ok';
+    return true;
+  } catch(e) {
+    console.warn('State fetch failed:', e.message);
+    return false;
+  }
+}
+
+/* ═══ INIT ═══ */
+async function init() {
+  /* Render loading state immediately */
+  renderAll();
+
+  /* Fetch initial state with retry */
+  let loaded = await fetchFullState();
+  if (!loaded) {
+    await new Promise(r => setTimeout(r, 1000));
+    loaded = await fetchFullState();
+  }
+  if (!loaded) {
+    await new Promise(r => setTimeout(r, 3000));
+    loaded = await fetchFullState();
+  }
+
+  /* Fetch convergence data */
+  try {
+    const gh = await cmd({action:'greenhouse'});
+    if (gh.convergences) S.convergences = gh.convergences;
+  } catch(e){}
+
+  renderAll();
+  connectSSE();
+
+  /* Periodic refresh (every 5s — keeps canvas alive, re-analyzes gaps) */
+  setInterval(async () => {
+    await fetchFullState();
+    renderGaps();
+    try {
+      const gh = await cmd({action:'greenhouse'});
+      if (gh.convergences) {
+        const changed = JSON.stringify(gh.convergences) !== JSON.stringify(S.convergences);
+        S.convergences = gh.convergences;
+        if (changed) renderOrganism();
+      }
+    } catch(e){}
+  }, 5000);
+}
+
+init();
+</script>
+</body>
+</html>

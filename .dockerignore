@@ -1,0 +1,13 @@
+.git
+.gitignore
+.DS_Store
+node_modules
+csos-data
+.csos
+csos
+csos-native
+csos-debug
+*.o
+*.a
+.env
+!.env.example
